@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="AudioStreamPlaybackMIDI" inherits="AudioStreamPlaybackResampled" api_type="extension" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+<class name="AudioStreamPlaybackMIDI" inherits="AudioStreamPlaybackMIDIBase" api_type="extension" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
 	<brief_description>
 		Playback instance for an [AudioStreamMIDI].
 	</brief_description>
@@ -24,4 +24,15 @@
 			</description>
 		</method>
 	</methods>
+	<members>
+		<member name="loop_count" type="int" setter="set_loop_count" getter="get_loop_count" default="-1">
+			Number of loops, or [code]-1[/code] for infinite.
+		</member>
+		<member name="loop_enabled" type="bool" setter="set_loop_enabled" getter="is_loop_enabled" default="true">
+			Whether the song loops.
+		</member>
+		<member name="song_number" type="int" setter="set_song_number" getter="get_song_number" default="-1">
+			Song index within the file, or [code]-1[/code] for the default.
+		</member>
+	</members>
 </class>

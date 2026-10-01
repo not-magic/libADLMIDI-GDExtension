@@ -13,9 +13,10 @@ using namespace godot;
 
 namespace {
 
-MidiSynthConfig make_info_config() {
-	MidiSynthConfig config;
-	config.num_chips = 1;
+Ref<AudioStreamPlaybackMIDI> make_info_config() {
+	Ref<AudioStreamPlaybackMIDI> config;
+	config.instantiate();
+	config->set_num_chips(1);
 	return config;
 }
 
@@ -28,7 +29,7 @@ void close_info_player(ADL_MIDIPlayer *&r_player) {
 
 ADL_MIDIPlayer *ensure_info_player(const AudioStreamMIDI &p_stream, ADL_MIDIPlayer *&r_player) {
 	if (!r_player) {
-		r_player = p_stream.create_player(ADL_CHIP_SAMPLE_RATE, make_info_config(), -1, true, -1);
+		r_player = p_stream.create_player(ADL_CHIP_SAMPLE_RATE, **make_info_config(), -1, true, -1);
 	}
 	return r_player;
 }
@@ -44,7 +45,7 @@ AudioStreamMIDI::~AudioStreamMIDI() {
 	close_info_player(info_player);
 }
 
-ADL_MIDIPlayer *AudioStreamMIDI::create_player(long p_sample_rate, const MidiSynthConfig &p_config, int p_song_number, bool p_use_loop, int p_loop_count) const {
+ADL_MIDIPlayer *AudioStreamMIDI::create_player(long p_sample_rate, const AudioStreamPlaybackMIDIBase &p_config, int p_song_number, bool p_use_loop, int p_loop_count) const {
 	ADL_MIDIPlayer *const p = create_base_player(p_sample_rate, p_config);
 	if (!p) {
 		return nullptr;
@@ -218,7 +219,7 @@ void AudioStreamPlaybackMIDI::_start(double p_from_pos) {
 
 	if (stream.is_valid()) {
 		mix_rate = AudioServer::get_singleton()->get_mix_rate();
-		player = stream->create_player((long)mix_rate, synth_config, song_number, use_loop, loop_count);
+		player = stream->create_player((long)mix_rate, *this, song_number, use_loop, loop_count);
 	}
 
 	if (player) {
@@ -291,7 +292,7 @@ void AudioStreamPlaybackMIDI::_set_parameter(const StringName &p_name, const Var
 	} else if (p_name == StringName("loop_count")) {
 		loop_count = p_value;
 	} else {
-		synth_config.try_set_parameter(p_name, p_value);
+		AudioStreamPlaybackMIDIBase::_set_parameter(p_name, p_value);
 	}
 }
 
@@ -305,9 +306,7 @@ Variant AudioStreamPlaybackMIDI::_get_parameter(const StringName &p_name) const 
 	if (p_name == StringName("loop_count")) {
 		return loop_count;
 	}
-	Variant value;
-	synth_config.try_get_parameter(p_name, value);
-	return value;
+	return AudioStreamPlaybackMIDIBase::_get_parameter(p_name);
 }
 
 double AudioStreamPlaybackMIDI::get_song_length() const {
@@ -319,6 +318,17 @@ bool AudioStreamPlaybackMIDI::is_at_end() const {
 }
 
 void AudioStreamPlaybackMIDI::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_song_number", "song_index"), &AudioStreamPlaybackMIDI::set_song_number);
+	ClassDB::bind_method(D_METHOD("get_song_number"), &AudioStreamPlaybackMIDI::get_song_number);
+	ClassDB::bind_method(D_METHOD("set_loop_enabled", "is_enabled"), &AudioStreamPlaybackMIDI::set_loop_enabled);
+	ClassDB::bind_method(D_METHOD("is_loop_enabled"), &AudioStreamPlaybackMIDI::is_loop_enabled);
+	ClassDB::bind_method(D_METHOD("set_loop_count", "loop_total"), &AudioStreamPlaybackMIDI::set_loop_count);
+	ClassDB::bind_method(D_METHOD("get_loop_count"), &AudioStreamPlaybackMIDI::get_loop_count);
+
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "song_number", PROPERTY_HINT_RANGE, "-1,255,1"), "set_song_number", "get_song_number");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "loop_enabled"), "set_loop_enabled", "is_loop_enabled");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "loop_count", PROPERTY_HINT_RANGE, "-1,100,1"), "set_loop_count", "get_loop_count");
+
 	ClassDB::bind_method(D_METHOD("get_song_length"), &AudioStreamPlaybackMIDI::get_song_length);
 	ClassDB::bind_method(D_METHOD("is_at_end"), &AudioStreamPlaybackMIDI::is_at_end);
 }

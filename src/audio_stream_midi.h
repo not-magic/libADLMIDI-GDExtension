@@ -2,7 +2,6 @@
 
 #include "audio_stream_midi_base.h"
 
-#include <godot_cpp/classes/audio_stream_playback_resampled.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
 
 struct ADL_MIDIPlayer;
@@ -30,7 +29,7 @@ public:
 	AudioStreamMIDI();
 	~AudioStreamMIDI();
 
-	ADL_MIDIPlayer *create_player(long p_sample_rate, const MidiSynthConfig &p_config, int p_song_number, bool p_use_loop, int p_loop_count) const;
+	ADL_MIDIPlayer *create_player(long p_sample_rate, const AudioStreamPlaybackMIDIBase &p_config, int p_song_number, bool p_use_loop, int p_loop_count) const;
 
 	virtual Ref<AudioStreamPlayback> _instantiate_playback() const override;
 	virtual String _get_stream_name() const override;
@@ -54,14 +53,13 @@ public:
 };
 
 // Owns its own ADL_MIDIPlayer, so one AudioStreamMIDI can play concurrently.
-class AudioStreamPlaybackMIDI : public AudioStreamPlaybackResampled {
-	GDCLASS(AudioStreamPlaybackMIDI, AudioStreamPlaybackResampled) // NOLINT
+class AudioStreamPlaybackMIDI : public AudioStreamPlaybackMIDIBase {
+	GDCLASS(AudioStreamPlaybackMIDI, AudioStreamPlaybackMIDIBase) // NOLINT
 
 	friend class AudioStreamMIDI;
 
 	Ref<AudioStreamMIDI> stream;
 	ADL_MIDIPlayer *player = nullptr;
-	MidiSynthConfig synth_config;
 	float mix_rate = 44100.0f;
 	int song_number = -1;
 	int loop_count = -1;
@@ -84,6 +82,13 @@ public:
 	virtual float _get_stream_sampling_rate() const override;
 	virtual void _set_parameter(const StringName &p_name, const Variant &p_value) override;
 	virtual Variant _get_parameter(const StringName &p_name) const override;
+
+	void set_song_number(int p_song_index) { song_number = p_song_index; }
+	int get_song_number() const { return song_number; }
+	void set_loop_enabled(bool p_is_enabled) { use_loop = p_is_enabled; }
+	bool is_loop_enabled() const { return use_loop; }
+	void set_loop_count(int p_loop_total) { loop_count = p_loop_total; }
+	int get_loop_count() const { return loop_count; }
 
 	double get_song_length() const;
 	bool is_at_end() const;

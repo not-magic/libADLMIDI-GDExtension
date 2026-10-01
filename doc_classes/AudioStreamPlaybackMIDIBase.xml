@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="AudioStreamPlaybackMIDIBase" inherits="AudioStreamPlaybackResampled" api_type="extension" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+	<brief_description>
+		Abstract base of the MIDI playback classes.
+	</brief_description>
+	<description>
+		Holds the synth settings shared by [AudioStreamPlaybackMIDI] and [AudioStreamPlaybackMIDISequencer]. They mirror the [AudioStreamPlayer] parameters of the same names and are read when playback starts.
+	</description>
+	<tutorials>
+	</tutorials>
+	<members>
+		<member name="embedded_bank" type="int" setter="set_embedded_bank" getter="get_embedded_bank" default="0">
+			Index of the embedded instrument bank. Takes effect when playback starts.
+		</member>
+		<member name="emulator" type="int" setter="set_emulator" getter="get_emulator" default="0">
+			OPL3 emulator backend. Takes effect when playback starts.
+		</member>
+		<member name="four_op_channels" type="int" setter="set_four_op_channels" getter="get_four_op_channels" default="-1">
+			Number of four-operator channels, or [code]-1[/code] for automatic. Takes effect when playback starts.
+		</member>
+		<member name="full_range_brightness" type="bool" setter="set_full_range_brightness" getter="is_full_range_brightness" default="false">
+			Whether full-range brightness is enabled. Takes effect when playback starts.
+		</member>
+		<member name="num_chips" type="int" setter="set_num_chips" getter="get_num_chips" default="4">
+			Number of emulated OPL3 chips. Takes effect when playback starts.
+		</member>
+		<member name="volume_model" type="int" setter="set_volume_model" getter="get_volume_model" default="0">
+			Volume scaling model. Takes effect when playback starts.
+		</member>
+	</members>
+</class>

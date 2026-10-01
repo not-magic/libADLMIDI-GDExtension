@@ -24,7 +24,7 @@ void report_if_discarded(bool p_is_queued, int p_frame_index, int p_current_fram
 
 // =========================== AudioStreamMIDISequencer ===========================
 
-ADL_MIDIPlayer *AudioStreamMIDISequencer::create_player(long p_sample_rate, const MidiSynthConfig &p_config) const {
+ADL_MIDIPlayer *AudioStreamMIDISequencer::create_player(long p_sample_rate, const AudioStreamPlaybackMIDIBase &p_config) const {
 	return create_base_player(p_sample_rate, p_config);
 }
 
@@ -66,7 +66,7 @@ void AudioStreamPlaybackMIDISequencer::_start(double p_from_pos) {
 
 	if (stream.is_valid()) {
 		mix_rate = AudioServer::get_singleton()->get_mix_rate();
-		player = stream->create_player((long)mix_rate, synth_config);
+		player = stream->create_player((long)mix_rate, *this);
 	}
 
 	scheduler.set_player(player);
@@ -102,16 +102,6 @@ int32_t AudioStreamPlaybackMIDISequencer::_mix_resampled(AudioFrame *p_dst_buffe
 
 float AudioStreamPlaybackMIDISequencer::_get_stream_sampling_rate() const {
 	return mix_rate;
-}
-
-void AudioStreamPlaybackMIDISequencer::_set_parameter(const StringName &p_name, const Variant &p_value) {
-	synth_config.try_set_parameter(p_name, p_value);
-}
-
-Variant AudioStreamPlaybackMIDISequencer::_get_parameter(const StringName &p_name) const {
-	Variant value;
-	synth_config.try_get_parameter(p_name, value);
-	return value;
 }
 
 void AudioStreamPlaybackMIDISequencer::note_on(int p_frame_index, int p_channel_index, int p_note_index, int p_velocity) {

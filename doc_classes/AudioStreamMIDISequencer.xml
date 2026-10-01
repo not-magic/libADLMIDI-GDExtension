@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <class name="AudioStreamMIDISequencer" inherits="AudioStreamMIDIBase" api_type="extension" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
 	<brief_description>
-		A live, code-driven OPL3 synthesizer with no fixed song.
+		A live, code-driven MIDI synthesizer.
 	</brief_description>
 	<description>
-		An [AudioStream] with no fixed song: a live OPL3 synthesizer driven entirely from code, for procedurally generated music. Beyond the synthesizer parameters inherited from [AudioStreamMIDIBase] ([code]num_chips[/code], [code]emulator[/code], ...), it adds nothing of its own — actually playing notes is done through the [AudioStreamPlaybackMIDISequencer] instance it produces.
+		An [AudioStream] instrument: driven entirely from code, for procedurally generated music. Beyond the synthesizer parameters inherited from [AudioStreamMIDIBase] ([code]num_chips[/code], [code]emulator[/code], ...), it adds nothing of its own — actually playing notes is done through the [AudioStreamPlaybackMIDISequencer] instance it produces.
 		[codeblock]
 		var stream := AudioStreamMIDISequencer.new()
 		player.stream = stream

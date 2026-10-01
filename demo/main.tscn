@@ -29,6 +29,7 @@ text = "Play"
 
 [node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="." unique_id=395453540]
 stream = ExtResource("2_0xm2m")
+parameters/volume_model = 14
 parameters/emulator = 3
 parameters/full_range_brightness = true
 

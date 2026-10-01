@@ -20,6 +20,7 @@ void initialize_adlmidi_module(ModuleInitializationLevel p_level) {
 	}
 
 	GDREGISTER_ABSTRACT_CLASS(AudioStreamMIDIBase);
+	GDREGISTER_ABSTRACT_CLASS(AudioStreamPlaybackMIDIBase);
 	GDREGISTER_CLASS(AudioStreamMIDI);
 	GDREGISTER_CLASS(AudioStreamPlaybackMIDI);
 	GDREGISTER_CLASS(AudioStreamMIDISequencer);
