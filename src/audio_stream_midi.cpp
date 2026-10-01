@@ -116,6 +116,12 @@ String AudioStreamMIDI::get_title() const {
 }
 
 String AudioStreamMIDI::get_copyright() const {
+
+	// adl seems to crash here if midi_data is empty
+	if (midi_data.is_empty()) {
+		return String();
+	}
+
 	ADL_MIDIPlayer *const p = ensure_info_player(*this, info_player);
 	if (!p) {
 		return String();

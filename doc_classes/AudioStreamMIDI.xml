@@ -28,12 +28,6 @@
 				Returns the display name of the built-in instrument bank at [param index].
 			</description>
 		</method>
-		<method name="get_copyright" qualifiers="const">
-			<return type="String" />
-			<description>
-				Returns the copyright notice embedded in the loaded MIDI file, or an empty string if it has none.
-			</description>
-		</method>
 		<method name="get_loop_end_time" qualifiers="const">
 			<return type="float" />
 			<description>
@@ -46,24 +40,6 @@
 				Returns the loop start position in seconds, or [code]-1[/code] if the file has no [code]loopStart[/code] tag.
 			</description>
 		</method>
-		<method name="get_songs_count" qualifiers="const">
-			<return type="int" />
-			<description>
-				Returns the number of songs in the loaded file. Files with more than one song (typically XMI) can be switched between with the [code]song_number[/code] parameter.
-			</description>
-		</method>
-		<method name="get_title" qualifiers="const">
-			<return type="String" />
-			<description>
-				Returns the title embedded in the loaded MIDI file, or an empty string if it has none.
-			</description>
-		</method>
-		<method name="get_track_count" qualifiers="const">
-			<return type="int" />
-			<description>
-				Returns the number of tracks in the loaded MIDI file.
-			</description>
-		</method>
 		<method name="get_track_title" qualifiers="const">
 			<return type="String" />
 			<param index="0" name="index" type="int" />
@@ -73,19 +49,19 @@
 		</method>
 	</methods>
 	<members>
-		<member name="copyright" type="String" setter="" getter="get_copyright">
+		<member name="copyright" type="String" setter="" getter="get_copyright" default="&quot;&quot;">
 			Copyright text from the MIDI file. Read-only.
 		</member>
 		<member name="midi_data" type="PackedByteArray" setter="set_midi_data" getter="get_midi_data" default="PackedByteArray()">
 			Raw bytes of the Standard MIDI File to play. Set automatically when loading a [code].mid[/code] file; can also be assigned directly.
 		</member>
-		<member name="songs_count" type="int" setter="" getter="get_songs_count">
+		<member name="songs_count" type="int" setter="" getter="get_songs_count" default="0">
 			Number of songs in the loaded file. Read-only.
 		</member>
-		<member name="title" type="String" setter="" getter="get_title">
+		<member name="title" type="String" setter="" getter="get_title" default="&quot;&quot;">
 			Music title from the MIDI file. Read-only.
 		</member>
-		<member name="track_count" type="int" setter="" getter="get_track_count">
+		<member name="track_count" type="int" setter="" getter="get_track_count" default="0">
 			Number of tracks in the loaded file. Read-only.
 		</member>
 	</members>
