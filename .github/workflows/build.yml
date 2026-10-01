@@ -8,18 +8,47 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.platform }}
+    name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: linux
+          - name: linux
+            platform: linux
             os: ubuntu-latest
-          - platform: windows
+            args: ""
+            is_native: true
+          - name: windows
+            platform: windows
             os: windows-latest
-          - platform: macos
+            args: ""
+            is_native: true
+          - name: macos
+            platform: macos
             os: macos-latest
+            args: ""
+            is_native: true
+          - name: android-arm64
+            platform: android
+            os: ubuntu-latest
+            args: "arch=arm64"
+            is_native: false
+          - name: ios
+            platform: ios
+            os: macos-latest
+            args: "arch=arm64"
+            is_native: false
+          - name: web
+            platform: web
+            os: ubuntu-latest
+            args: ""
+            is_native: false
+          - name: web-nothreads
+            platform: web
+            os: ubuntu-latest
+            args: "threads=no"
+            is_native: false
     steps:
       - uses: actions/checkout@v7
         with:
@@ -41,6 +70,18 @@ jobs:
         with:
           arch: x64
 
+      - name: Install Emscripten
+        if: matrix.platform == 'web'
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 4.0.11
+
+      - name: Install Android NDK
+        if: matrix.platform == 'android'
+        shell: bash
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.1.13356709"
+
       # Pinned godot-cpp/libADLMIDI commits, so bumping either submodule
       # invalidates the cache key too.
       - name: Get submodule revisions
@@ -52,14 +93,22 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .scons_cache
-          key: scons-ci-${{ matrix.platform }}-${{ hashFiles('src/**', 'SConstruct') }}-${{ steps.submodules.outputs.hash }}
+          key: scons-ci-${{ matrix.name }}-${{ hashFiles('src/**', 'SConstruct') }}-${{ steps.submodules.outputs.hash }}
           restore-keys: |
-            scons-ci-${{ matrix.platform }}-
+            scons-ci-${{ matrix.name }}-
 
       # Builds the extension and runs the standalone (no godot-cpp) tests in
       # tests/ in one pass. template_debug only: this is a compile/test
       # sanity check, not a release build (see release.yml for that).
       - name: Build and test
+        if: matrix.is_native
         env:
           SCONS_CACHE: ${{ github.workspace }}/.scons_cache
         run: scons platform=${{ matrix.platform }} target=template_debug tests=yes run_tests=yes -j4
+
+      # Cross-compiled targets can't run the standalone tests on the runner.
+      - name: Build
+        if: ${{ !matrix.is_native }}
+        env:
+          SCONS_CACHE: ${{ github.workspace }}/.scons_cache
+        run: scons platform=${{ matrix.platform }} ${{ matrix.args }} target=template_debug -j4

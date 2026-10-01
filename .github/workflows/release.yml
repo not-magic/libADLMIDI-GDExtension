@@ -1,6 +1,6 @@
 name: Release
 
-# Builds template_debug + template_release for linux/windows/macos, then
+# Builds template_debug + template_release for linux/windows/macos/android/ios (arm64)/web, then
 # packages demo/addons/ADLMIDI/ (source-free, binaries for every platform
 # included) into a zip attached to a GitHub Release. The zip's internal
 # layout is addons/ADLMIDI/..., so it extracts directly into a project's
@@ -24,18 +24,47 @@ permissions:
 
 jobs:
   build:
-    name: ${{ matrix.platform }}
+    name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: linux
+          - name: linux
+            platform: linux
             os: ubuntu-latest
-          - platform: windows
+            args: ""
+            is_native: true
+          - name: windows
+            platform: windows
             os: windows-latest
-          - platform: macos
+            args: ""
+            is_native: true
+          - name: macos
+            platform: macos
             os: macos-latest
+            args: ""
+            is_native: true
+          - name: android-arm64
+            platform: android
+            os: ubuntu-latest
+            args: "arch=arm64"
+            is_native: false
+          - name: ios
+            platform: ios
+            os: macos-latest
+            args: "arch=arm64"
+            is_native: false
+          - name: web
+            platform: web
+            os: ubuntu-latest
+            args: ""
+            is_native: false
+          - name: web-nothreads
+            platform: web
+            os: ubuntu-latest
+            args: "threads=no"
+            is_native: false
     steps:
       - uses: actions/checkout@v7
         with:
@@ -58,6 +87,18 @@ jobs:
         with:
           arch: x64
 
+      - name: Install Emscripten
+        if: matrix.platform == 'web'
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 4.0.11
+
+      - name: Install Android NDK
+        if: matrix.platform == 'android'
+        shell: bash
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.1.13356709"
+
       # Pinned godot-cpp/libADLMIDI commits, so bumping either submodule
       # invalidates the cache key too.
       - name: Get submodule revisions
@@ -69,24 +110,35 @@ jobs:
         uses: actions/cache@v6
         with:
           path: .scons_cache
-          key: scons-release-${{ matrix.platform }}-${{ hashFiles('src/**', 'SConstruct') }}-${{ steps.submodules.outputs.hash }}
+          key: scons-release-${{ matrix.name }}-${{ hashFiles('src/**', 'SConstruct') }}-${{ steps.submodules.outputs.hash }}
           restore-keys: |
-            scons-release-${{ matrix.platform }}-
+            scons-release-${{ matrix.name }}-
 
       - name: Build template_debug
         env:
           SCONS_CACHE: ${{ github.workspace }}/.scons_cache
-        run: scons platform=${{ matrix.platform }} target=template_debug -j4
+        run: scons platform=${{ matrix.platform }} ${{ matrix.args }} target=template_debug -j4
 
       - name: Build template_release
         env:
           SCONS_CACHE: ${{ github.workspace }}/.scons_cache
-        run: scons platform=${{ matrix.platform }} target=template_release -j4
+        run: scons platform=${{ matrix.platform }} ${{ matrix.args }} target=template_release -j4
+
+      - name: Wrap iOS dylibs in xcframeworks
+        if: matrix.platform == 'ios'
+        working-directory: demo/addons/ADLMIDI/bin
+        run: |
+          for target in template_debug template_release; do
+            xcodebuild -create-xcframework \
+              -library libADLMIDI.ios.$target.arm64.dylib \
+              -output libADLMIDI.ios.$target.xcframework
+            rm libADLMIDI.ios.$target.arm64.dylib
+          done
 
       - name: Upload binaries
         uses: actions/upload-artifact@v7
         with:
-          name: adlmidi-bin-${{ matrix.platform }}
+          name: adlmidi-bin-${{ matrix.name }}
           path: demo/addons/ADLMIDI/bin/
 
   package:

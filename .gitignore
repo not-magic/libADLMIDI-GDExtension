@@ -8,6 +8,7 @@ demo/addons/ADLMIDI/bin/*.so
 demo/addons/ADLMIDI/bin/*.dll
 demo/addons/ADLMIDI/bin/*.dylib
 demo/addons/ADLMIDI/bin/*.a
+demo/addons/ADLMIDI/bin/*.wasm
 demo/.godot/
 tests/bin/
 tests/*.o

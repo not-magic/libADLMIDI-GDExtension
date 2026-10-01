@@ -2,29 +2,27 @@
 import os
 import sys
 
-# Godot API version we build against
-# ARGUMENTS.setdefault("api_version", "4.5")
+# You can find documentation for SCons and SConstruct files at:
+# https://scons.org/documentation.html
 
+ADDON_NAME = 'ADLMIDI'
+
+
+# This lets SCons know that we're using godot-cpp, from the godot-cpp folder.
 env = SConscript("godot-cpp/SConstruct")
 
-# For reference:
-# - CCFLAGS are compilation flags shared between C and C++
-# - CFLAGS are for C-specific compilation flags
-# - CXXFLAGS are for C++-specific compilation flags
-# - CPPFLAGS are for pre-processor flags
-# - CPPDEFINES are for pre-processor defines
-# - LINKFLAGS are for linking flags
-
+# Configures the 'src' directory as a source for header files.
 env.Append(CPPPATH=["src/", "libADLMIDI/include/"])
+
+# Collects all .cpp files in the 'src' folder as compile targets.
 sources = Glob("src/*.cpp")
 
-# Embeds doc_classes/*.xml into the extension so AudioStreamMIDI and friends
-# get real entries (descriptions, etc.) in the editor's Help panel, not just
-# auto-generated stubs. Only editor/template_debug builds need it -- release
-# export templates never show the Help panel, matching Godot's own convention.
 if env["target"] in ["editor", "template_debug"]:
-    doc_data = env.GodotCPPDocData("src/gen/doc_data.gen.cpp", source=Glob("doc_classes/*.xml"))
-    sources.append(doc_data)
+    try:
+        doc_data = env.GodotCPPDocData("src/gen/doc_data.gen.cpp", source=Glob("doc_classes/*.xml"))
+        sources.append(doc_data)
+    except AttributeError:
+        print("Not including class reference as we're targeting a pre-4.3 baseline.")
 
 # libADLMIDI doesn't ship its own SCons build, so its sources are compiled
 # directly here instead. This list (and the ENABLE_END_SILENCE_SKIPPING
@@ -97,30 +95,21 @@ adlmidi_relative_sources = [
 adlmidi_objects = [adlmidi_env.SharedObject(os.path.join(libadlmidi_build_dir, f)) for f in adlmidi_relative_sources]
 sources += adlmidi_objects
 
-if env["platform"] == "macos":
-    library = env.SharedLibrary(
-        "demo/addons/ADLMIDI/bin/libadlmidi.{}.{}.framework/libadlmidi.{}.{}".format(
-            env["platform"], env["target"], env["platform"], env["target"]
-        ),
-        source=sources,
-    )
-elif env["platform"] == "ios":
-    if env["ios_simulator"]:
-        library = env.StaticLibrary(
-            "demo/addons/ADLMIDI/bin/libadlmidi.{}.{}.simulator.a".format(env["platform"], env["target"]),
-            source=sources,
-        )
-    else:
-        library = env.StaticLibrary(
-            "demo/addons/ADLMIDI/bin/libadlmidi.{}.{}.a".format(env["platform"], env["target"]),
-            source=sources,
-        )
-else:
-    library = env.SharedLibrary(
-        "demo/addons/ADLMIDI/bin/libadlmidi{}{}".format(env["suffix"], env["SHLIBSUFFIX"]),
-        source=sources,
-    )
+# The filename for the dynamic library for this GDExtension.
+# $SHLIBPREFIX is a platform specific prefix for the dynamic library ('lib' on Unix, '' on Windows).
+# $SHLIBSUFFIX is the platform specific suffix for the dynamic library (for example '.dll' on Windows).
+# env["suffix"] includes the build's feature tags (e.g. '.windows.template_debug.x86_64')
+# (see https://docs.godotengine.org/en/stable/tutorials/export/feature_tags.html).
+# The final path should match a path in the '.gdextension' file.
+lib_filename = "{}{}{}{}".format(env.subst('$SHLIBPREFIX'), ADDON_NAME, env["suffix"], env.subst('$SHLIBSUFFIX'))
 
+# Creates a SCons target for the path with our sources.
+library = env.SharedLibrary(
+    "demo/addons/{}/bin/{}".format(ADDON_NAME, lib_filename),
+    source=sources,
+)
+
+# Selects the shared library as the default target.
 Default(library)
 
 # --- Standalone libADLMIDI-level tests (tests/) ---
@@ -175,9 +164,53 @@ if build_tests:
             test_env.AlwaysBuild(test_stamp)
             Default(test_stamp)
 
-# `scons docs` regenerates doc_classes/*.xml via Godot's --doctool (needs a
-# template_debug build and the flatpak editor, org.godotengine.Godot) and then
-# docs/*.md for the GitHub wiki; `scons update_wiki` only does the latter.
+# --- Formatting and linting (.clang-format, .clang-tidy) ---
+# `scons format` rewrites src/ and tests/ in place with clang-format;
+# `scons tidy` runs clang-tidy over every src/*.cpp (plus headers under src/) with
+# the same include paths/defines the real build uses. Point CLANG_FORMAT /
+# CLANG_TIDY at a specific binary to override the one found on PATH. The
+# .clang-format/.clang-tidy files need a recent LLVM (distro clang 14 can't
+# parse them); `pip install clang-format clang-tidy` provides one.
+import subprocess
+
+godot_env = env
+lint_sources = sorted(str(f) for f in Glob("src/*.cpp") + Glob("src/*.h") + Glob("tests/*.cpp"))
+
+
+def run_format(target, source, env):
+    tool = os.environ.get("CLANG_FORMAT", "clang-format")
+    return subprocess.call([tool, "-i", "--style=file"] + lint_sources)
+
+
+def run_tidy(target, source, env):
+    tool = os.environ.get("CLANG_TIDY", "clang-tidy")
+    status = 0
+    for path in lint_sources:
+        if not path.endswith(".cpp") or path.startswith("tests"):
+            continue
+        compile_args = ["-I" + str(d) for d in godot_env["CPPPATH"]] + ["-std=c++17"]
+        for define in godot_env["CPPDEFINES"]:
+            if isinstance(define, (tuple, list)):
+                compile_args.append("-D{}={}".format(*define))
+            else:
+                compile_args.append("-D" + str(define))
+        status |= subprocess.call([tool, "--quiet", "--header-filter=.*/src/.*", path, "--"] + compile_args)
+    return status
+
+
+format_sources = Command("format", None, run_format)
+AlwaysBuild(format_sources)
+
+tidy_sources = Command("tidy", None, run_tidy)
+AlwaysBuild(tidy_sources)
+
+# --- Docs update (doc_classes/) ---
+# Regenerates doc_classes/*.xml from the classes' _bind_methods() by loading
+# the built extension into Godot's --doctool. Requires a template_debug build
+# (with doc data compiled in, see the GodotCPPDocData block above) and a
+# flatpak install of the Godot editor (org.godotengine.Godot). Run with
+# `scons docs`. Runs from demo/ since --doctool needs a Godot project
+# (project.godot) to load the extension into.
 update_docs = Command(
     "update_docs",
     None,
@@ -186,6 +219,14 @@ update_docs = Command(
 )
 AlwaysBuild(update_docs)
 
+# --- Wiki docs (docs/) ---
+# Regenerates docs/*.md (GitHub wiki pages) from doc_classes/*.xml via
+# tools/generate_docs.py. Not part of the default build -- run explicitly
+# with `scons update_wiki` (against whatever doc_classes/*.xml is currently
+# on disk), or via `scons docs`, which also regenerates that XML first so
+# the wiki pages never drift from it. Split into two Command nodes so a
+# plain build/`scons update_wiki` never pulls in the flatpak --doctool step
+# above.
 wiki_action = "{} tools/generate_docs.py --src doc_classes --out docs".format(sys.executable)
 
 update_wiki = Command("update_wiki", None, wiki_action)
@@ -195,4 +236,4 @@ update_wiki_after_docs = Command("update_wiki_after_docs", None, wiki_action)
 AlwaysBuild(update_wiki_after_docs)
 Requires(update_wiki_after_docs, update_docs)
 
-Alias("docs", [update_docs, update_wiki_after_docs])
+docs_alias = Alias("docs", [update_docs, update_wiki_after_docs])

@@ -43,7 +43,7 @@ scons platform=linux target=template_debug -j$(nproc)
 
 Swap `platform=linux` for `windows` or `macos`, and use `target=template_release` for a release/export build. The first build compiles godot-cpp's full binding set and libADLMIDI from source, so it takes a while; rebuilds after that are incremental.
 
-The result is written to `demo/addons/ADLMIDI/bin/`, matching the paths already referenced by `demo/addons/ADLMIDI/adlmidi.gdextension` (e.g. `demo/addons/ADLMIDI/bin/libadlmidi.linux.template_debug.x86_64.so`).
+The result is written to `demo/addons/ADLMIDI/bin/`, matching the paths already referenced by `demo/addons/ADLMIDI/adlmidi.gdextension` (e.g. `demo/addons/ADLMIDI/bin/libADLMIDI.linux.template_debug.x86_64.so`).
 
 See `CLAUDE.md` for more build/architecture detail.
 
