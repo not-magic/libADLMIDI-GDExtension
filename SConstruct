@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import sys
 
 # Godot API version we build against
 # ARGUMENTS.setdefault("api_version", "4.5")
@@ -173,3 +174,25 @@ if build_tests:
             )
             test_env.AlwaysBuild(test_stamp)
             Default(test_stamp)
+
+# `scons docs` regenerates doc_classes/*.xml via Godot's --doctool (needs a
+# template_debug build and the flatpak editor, org.godotengine.Godot) and then
+# docs/*.md for the GitHub wiki; `scons update_wiki` only does the latter.
+update_docs = Command(
+    "update_docs",
+    None,
+    "flatpak run org.godotengine.Godot --doctool ../ --gdextension-docs",
+    chdir="demo",
+)
+AlwaysBuild(update_docs)
+
+wiki_action = "{} tools/generate_docs.py --src doc_classes --out docs".format(sys.executable)
+
+update_wiki = Command("update_wiki", None, wiki_action)
+AlwaysBuild(update_wiki)
+
+update_wiki_after_docs = Command("update_wiki_after_docs", None, wiki_action)
+AlwaysBuild(update_wiki_after_docs)
+Requires(update_wiki_after_docs, update_docs)
+
+Alias("docs", [update_docs, update_wiki_after_docs])

@@ -4,7 +4,7 @@
 		Shared OPL3 synthesizer configuration for [AudioStreamMIDI] and [AudioStreamMIDISequencer].
 	</brief_description>
 	<description>
-		Abstract base class shared by [AudioStreamMIDI] and [AudioStreamMIDISequencer], holding the optional custom WOPL bank ([member bank_data]). The stream itself is read-only: the synthesizer settings are [AudioStreamPlayer] parameters, set in the Inspector or in code as [code]parameters/<name>[/code] via [method Object.set]:
+		Abstract base class shared by [AudioStreamMIDI] and [AudioStreamMIDISequencer], holding the optional custom WOPL bank ([member bank_data]). The stream itself is read-only: the synthesizer settings are [AudioStreamPlayer] parameters, set in the Inspector or in code via [method Object.set] with "parameters/&lt;name&gt;":
 		- [code]embedded_bank[/code] (int): index of one of libADLMIDI's built-in banks; ignored if [member bank_data] is set. See [method AudioStreamMIDI.get_bank_count] and [method AudioStreamMIDI.get_bank_name].
 		- [code]num_chips[/code] (int): number of emulated OPL3 chips; more chips raise the polyphony limit.
 		- [code]four_op_channels[/code] (int): four-operator channels across all chips; [code]-1[/code] chooses automatically from the bank.
