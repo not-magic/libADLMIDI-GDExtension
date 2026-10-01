@@ -67,11 +67,13 @@ Or build the stream programmatically:
 ```gdscript
 var stream := AudioStreamMIDI.new()
 stream.midi_data = FileAccess.get_file_as_bytes("res://song.mid")
-stream.num_chips = 6
-stream.emulator = 0 # Nuked
 player.stream = stream
+player.set("parameters/num_chips", 6)
+player.set("parameters/emulator", 0) # Nuked
 player.play()
 ```
+
+Streams are read-only resources; synth and playback settings (`embedded_bank`, `num_chips`, `four_op_channels`, `volume_model`, `emulator`, `full_range_brightness`, and for `AudioStreamMIDI` also `song_number`, `loop_enabled`, `loop_count`) are `AudioStreamPlayer` parameters (`parameters/<name>`), read when playback starts.
 
 ### Generating music in real time
 

@@ -11,8 +11,8 @@ using namespace godot;
 
 // =========================== AudioStreamMIDISequencer ===========================
 
-ADL_MIDIPlayer *AudioStreamMIDISequencer::create_player(long p_sample_rate) const {
-	return create_base_player(p_sample_rate);
+ADL_MIDIPlayer *AudioStreamMIDISequencer::create_player(long p_sample_rate, const MidiSynthConfig &p_config) const {
+	return create_base_player(p_sample_rate, p_config);
 }
 
 Ref<AudioStreamPlayback> AudioStreamMIDISequencer::_instantiate_playback() const {
@@ -47,17 +47,17 @@ void AudioStreamPlaybackMIDISequencer::_start(double p_from_pos) {
 		player = nullptr;
 	}
 
-	active = false;
+	is_active = false;
 	scheduler.set_player(nullptr);
 	scheduler.reset();
 
 	if (stream.is_valid()) {
 		mix_rate = AudioServer::get_singleton()->get_mix_rate();
-		player = stream->create_player((long)mix_rate);
+		player = stream->create_player((long)mix_rate, synth_config);
 	}
 
 	scheduler.set_player(player);
-	active = player != nullptr;
+	is_active = player != nullptr;
 
 	begin_resample();
 }
@@ -68,16 +68,16 @@ void AudioStreamPlaybackMIDISequencer::_stop() {
 		player = nullptr;
 	}
 	scheduler.set_player(nullptr);
-	active = false;
+	is_active = false;
 	scheduler.reset();
 }
 
 bool AudioStreamPlaybackMIDISequencer::_is_playing() const {
-	return active;
+	return is_active;
 }
 
 int32_t AudioStreamPlaybackMIDISequencer::_mix_resampled(AudioFrame *p_dst_buffer, int32_t p_frame_count) {
-	if (!active || !player) {
+	if (!is_active || !player) {
 		std::memset(p_dst_buffer, 0, sizeof(AudioFrame) * (size_t)p_frame_count);
 		return p_frame_count;
 	}
@@ -89,6 +89,16 @@ int32_t AudioStreamPlaybackMIDISequencer::_mix_resampled(AudioFrame *p_dst_buffe
 
 float AudioStreamPlaybackMIDISequencer::_get_stream_sampling_rate() const {
 	return mix_rate;
+}
+
+void AudioStreamPlaybackMIDISequencer::_set_parameter(const StringName &p_name, const Variant &p_value) {
+	synth_config.set_parameter(p_name, p_value);
+}
+
+Variant AudioStreamPlaybackMIDISequencer::_get_parameter(const StringName &p_name) const {
+	Variant value;
+	synth_config.find_parameter(p_name, value);
+	return value;
 }
 
 void AudioStreamPlaybackMIDISequencer::_report_if_discarded(bool p_queued, int p_time) const {

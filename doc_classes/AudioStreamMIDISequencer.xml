@@ -4,7 +4,7 @@
 		A live, code-driven OPL3 synthesizer with no fixed song.
 	</brief_description>
 	<description>
-		An [AudioStream] with no fixed song: a live OPL3 synthesizer driven entirely from code, for procedurally generated music. Beyond the synthesizer configuration inherited from [AudioStreamMIDIBase] ([member AudioStreamMIDIBase.num_chips], [member AudioStreamMIDIBase.emulator], ...), it adds nothing of its own — actually playing notes is done through the [AudioStreamPlaybackMIDISequencer] instance it produces.
+		An [AudioStream] with no fixed song: a live OPL3 synthesizer driven entirely from code, for procedurally generated music. Beyond the synthesizer parameters inherited from [AudioStreamMIDIBase] ([code]num_chips[/code], [code]emulator[/code], ...), it adds nothing of its own — actually playing notes is done through the [AudioStreamPlaybackMIDISequencer] instance it produces.
 		[codeblock]
 		var stream := AudioStreamMIDISequencer.new()
 		player.stream = stream

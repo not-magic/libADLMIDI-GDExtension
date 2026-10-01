@@ -13,8 +13,8 @@ namespace godot {
 class AudioStreamPlaybackMIDI;
 
 // A playable MIDI song rendered through libADLMIDI's OPL3 FM emulation.
-// Holds the raw MIDI bytes plus the file-specific playback settings; the
-// chip/bank/emulator configuration lives in AudioStreamMIDIBase. Each
+// Holds the raw MIDI bytes and exposes read-only song info; all editable
+// settings are AudioStreamPlayer parameters (see _get_parameter_list). Each
 // playback instance gets its own ADL_MIDIPlayer so the same resource can be
 // played concurrently by multiple AudioStreamPlayers.
 class AudioStreamMIDI : public AudioStreamMIDIBase {
@@ -23,9 +23,6 @@ class AudioStreamMIDI : public AudioStreamMIDIBase {
 	friend class AudioStreamPlaybackMIDI;
 
 	PackedByteArray midi_data;
-	int song_number = -1;
-	bool loop_enabled = true;
-	int loop_count = -1;
 
 	mutable ADL_MIDIPlayer *info_player = nullptr;
 
@@ -40,27 +37,17 @@ public:
 	AudioStreamMIDI();
 	~AudioStreamMIDI();
 
-	// Creates and fully configures a new player instance from this resource's
-	// settings, opening the custom/embedded bank and the MIDI data (if any).
-	// Returns nullptr if libADLMIDI failed to initialize or load the bank.
-	ADL_MIDIPlayer *create_player(long sample_rate) const;
+	// Returns nullptr if libADLMIDI failed to initialize or load the bank/data.
+	ADL_MIDIPlayer *create_player(long p_sample_rate, const MidiSynthConfig &p_config, int p_song_number, bool p_is_loop_on, int p_loop_count) const;
 
 	virtual Ref<AudioStreamPlayback> _instantiate_playback() const override;
 	virtual String _get_stream_name() const override;
 	virtual double _get_length() const override;
 	virtual bool _has_loop() const override;
+	virtual TypedArray<Dictionary> _get_parameter_list() const override;
 
 	void set_midi_data(const PackedByteArray &p_data);
 	PackedByteArray get_midi_data() const { return midi_data; }
-
-	void set_song_number(int p_song);
-	int get_song_number() const { return song_number; }
-
-	void set_loop_enabled(bool p_enabled);
-	bool is_loop_enabled() const { return loop_enabled; }
-
-	void set_loop_count(int p_count);
-	int get_loop_count() const { return loop_count; }
 
 	String get_title() const;
 	String get_copyright() const;
@@ -85,8 +72,12 @@ class AudioStreamPlaybackMIDI : public AudioStreamPlaybackResampled {
 
 	Ref<AudioStreamMIDI> stream;
 	ADL_MIDIPlayer *player = nullptr;
-	bool active = false;
+	MidiSynthConfig synth_config;
+	int song_number = -1;
+	int loop_count = -1;
 	float mix_rate = 44100.0f;
+	bool is_loop_on = true;
+	bool is_active = false;
 
 protected:
 	static void _bind_methods();
@@ -102,6 +93,8 @@ public:
 	virtual void _seek(double p_position) override;
 	virtual int32_t _mix_resampled(AudioFrame *p_dst_buffer, int32_t p_frame_count) override;
 	virtual float _get_stream_sampling_rate() const override;
+	virtual void _set_parameter(const StringName &p_name, const Variant &p_value) override;
+	virtual Variant _get_parameter(const StringName &p_name) const override;
 
 	double get_song_length() const;
 	bool is_at_end() const;

@@ -4,7 +4,6 @@
 [ext_resource type="AudioStream" uid="uid://b14aht2laqnxg" path="res://win-passport.mid" id="2_0xm2m"]
 
 [sub_resource type="AudioStreamMIDISequencer" id="AudioStreamMIDISequencer_nqwlg"]
-full_range_brightness = true
 
 [node name="Main" type="Control" unique_id=1312304179]
 layout_mode = 3
@@ -25,18 +24,14 @@ offset_left = 226.0
 offset_top = 145.0
 offset_right = 355.0
 offset_bottom = 211.0
+toggle_mode = true
 text = "Play"
-
-[node name="StopButton" type="Button" parent="." unique_id=1632822646]
-layout_mode = 0
-offset_left = 364.0
-offset_top = 144.0
-offset_right = 493.0
-offset_bottom = 210.0
-text = "Stop"
 
 [node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="." unique_id=395453540]
 stream = ExtResource("2_0xm2m")
+parameters/volume_model = 14
+parameters/emulator = 4
+parameters/full_range_brightness = true
 
 [node name="NoteButton" type="Button" parent="." unique_id=1006606485]
 layout_mode = 0
@@ -50,7 +45,6 @@ text = "Note"
 stream = SubResource("AudioStreamMIDISequencer_nqwlg")
 autoplay = true
 
-[connection signal="pressed" from="PlayButton" to="." method="_on_play_button_pressed"]
-[connection signal="pressed" from="StopButton" to="." method="_on_stop_button_pressed"]
+[connection signal="toggled" from="PlayButton" to="AudioStreamPlayer" method="set_playing"]
 [connection signal="button_down" from="NoteButton" to="." method="_on_note_button_button_down"]
 [connection signal="button_up" from="NoteButton" to="." method="_on_note_button_button_up"]

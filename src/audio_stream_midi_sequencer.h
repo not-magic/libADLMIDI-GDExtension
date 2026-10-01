@@ -11,8 +11,8 @@ namespace godot {
 
 class AudioStreamPlaybackMIDISequencer;
 
-// A live OPL3 synth with no fixed song: just the chip/bank/emulator
-// configuration inherited from AudioStreamMIDIBase, nothing else. Each
+// A live OPL3 synth with no fixed song. Chip/bank/emulator settings are
+// AudioStreamPlayer parameters inherited from AudioStreamMIDIBase. Each
 // playback instance gets its own ADL_MIDIPlayer, driven entirely through
 // AudioStreamPlaybackMIDISequencer's note_on/note_off/... methods, for
 // procedurally generated music.
@@ -20,14 +20,12 @@ class AudioStreamMIDISequencer : public AudioStreamMIDIBase {
 	GDCLASS(AudioStreamMIDISequencer, AudioStreamMIDIBase)
 
 protected:
-	// Nothing of its own to bind: every property lives on AudioStreamMIDIBase.
+	// Nothing of its own to bind: everything lives on AudioStreamMIDIBase.
 	static void _bind_methods() {}
 
 public:
-	// Creates and fully configures a new player instance from this resource's
-	// settings, opening the custom/embedded bank. Returns nullptr if
-	// libADLMIDI failed to initialize or load the bank.
-	ADL_MIDIPlayer *create_player(long p_sample_rate) const;
+	// Returns nullptr if libADLMIDI failed to initialize or load the bank.
+	ADL_MIDIPlayer *create_player(long p_sample_rate, const MidiSynthConfig &p_config) const;
 
 	virtual Ref<AudioStreamPlayback> _instantiate_playback() const override;
 	virtual String _get_stream_name() const override;
@@ -48,9 +46,10 @@ class AudioStreamPlaybackMIDISequencer : public AudioStreamPlaybackResampled {
 
 	Ref<AudioStreamMIDISequencer> stream;
 	ADL_MIDIPlayer *player = nullptr;
-	bool active = false;
-	float mix_rate = 44100.0f;
+	MidiSynthConfig synth_config;
 	MidiScheduler scheduler;
+	float mix_rate = 44100.0f;
+	bool is_active = false;
 
 	void _report_if_discarded(bool p_queued, int p_time) const;
 
@@ -66,6 +65,8 @@ public:
 	virtual bool _is_playing() const override;
 	virtual int32_t _mix_resampled(AudioFrame *p_dst_buffer, int32_t p_frame_count) override;
 	virtual float _get_stream_sampling_rate() const override;
+	virtual void _set_parameter(const StringName &p_name, const Variant &p_value) override;
+	virtual Variant _get_parameter(const StringName &p_name) const override;
 
 	void note_on(int p_time, int p_channel, int p_note, int p_velocity);
 	void note_off(int p_time, int p_channel, int p_note);

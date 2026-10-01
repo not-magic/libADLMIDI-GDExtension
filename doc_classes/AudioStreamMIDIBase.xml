@@ -4,7 +4,14 @@
 		Shared OPL3 synthesizer configuration for [AudioStreamMIDI] and [AudioStreamMIDISequencer].
 	</brief_description>
 	<description>
-		Abstract base class shared by [AudioStreamMIDI] and [AudioStreamMIDISequencer], holding the libADLMIDI OPL3 synthesizer configuration common to both: emulated chip count ([member num_chips]), instrument bank ([member embedded_bank], or [member bank_data] for a custom WOPL bank), emulator core ([member emulator]), volume scaling curve ([member volume_model]), four-operator channel count ([member four_op_channels]), and brightness handling ([member full_range_brightness]).
+		Abstract base class shared by [AudioStreamMIDI] and [AudioStreamMIDISequencer], holding the optional custom WOPL bank ([member bank_data]). The stream itself is read-only: the synthesizer settings are [AudioStreamPlayer] parameters, set in the Inspector or in code as [code]parameters/<name>[/code] via [method Object.set]:
+		- [code]embedded_bank[/code] (int): index of one of libADLMIDI's built-in banks; ignored if [member bank_data] is set. See [method AudioStreamMIDI.get_bank_count] and [method AudioStreamMIDI.get_bank_name].
+		- [code]num_chips[/code] (int): number of emulated OPL3 chips; more chips raise the polyphony limit.
+		- [code]four_op_channels[/code] (int): four-operator channels across all chips; [code]-1[/code] chooses automatically from the bank.
+		- [code]volume_model[/code] (int): velocity scaling curve matching a specific driver or sound card.
+		- [code]emulator[/code] (int): OPL3 emulator core (Nuked, DOSBox, Opal, YMFM, ESFMu, MAME, ...).
+		- [code]full_range_brightness[/code] (bool): if [code]true[/code], CC74 scales over 0-127 instead of 0-64.
+		Parameters are read when playback starts; changing them while playing has no effect until the next play.
 		This class can't be instantiated directly. Use [AudioStreamMIDI] to play a MIDI file, or [AudioStreamMIDISequencer] to drive the synthesizer live with no fixed song.
 	</description>
 	<tutorials>
@@ -12,25 +19,7 @@
 	</tutorials>
 	<members>
 		<member name="bank_data" type="PackedByteArray" setter="set_bank_data" getter="get_bank_data" default="PackedByteArray()">
-			Raw bytes of a custom WOPL instrument bank to load. Takes priority over [member embedded_bank] when non-empty.
-		</member>
-		<member name="embedded_bank" type="int" setter="set_embedded_bank" getter="get_embedded_bank" default="0">
-			Index of one of libADLMIDI's built-in instrument banks to use. Ignored if [member bank_data] is set. See [method AudioStreamMIDI.get_bank_count] and [method AudioStreamMIDI.get_bank_name].
-		</member>
-		<member name="emulator" type="int" setter="set_emulator" getter="get_emulator" default="0">
-			Which OPL3 chip emulator core libADLMIDI uses to render audio (Nuked, DOSBox, Opal, YMFM, ESFMu, MAME, and others).
-		</member>
-		<member name="four_op_channels" type="int" setter="set_four_op_channels" getter="get_four_op_channels" default="-1">
-			Number of four-operator channels to allocate across all emulated chips. [code]-1[/code] lets libADLMIDI choose automatically based on the loaded bank.
-		</member>
-		<member name="full_range_brightness" type="bool" setter="set_full_range_brightness" getter="is_full_range_brightness" default="false">
-			If [code]true[/code], MIDI CC74 (brightness) scales over the full 0-127 range instead of the default 0-64.
-		</member>
-		<member name="num_chips" type="int" setter="set_num_chips" getter="get_num_chips" default="4">
-			Number of OPL3 chips to emulate. More chips increase the polyphony limit.
-		</member>
-		<member name="volume_model" type="int" setter="set_volume_model" getter="get_volume_model" default="0">
-			Volume scaling curve libADLMIDI applies to note velocity, matching the behavior of a specific driver or sound card.
+			Raw bytes of a custom WOPL instrument bank to load. Takes priority over the [code]embedded_bank[/code] parameter when non-empty.
 		</member>
 	</members>
 </class>

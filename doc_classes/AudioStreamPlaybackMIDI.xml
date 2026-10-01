@@ -20,7 +20,7 @@
 		<method name="is_at_end" qualifiers="const">
 			<return type="bool" />
 			<description>
-				Returns [code]true[/code] if playback has reached the end of the song. Only meaningful once [member AudioStreamMIDI.loop_enabled] is [code]false[/code], or after looping has exhausted [member AudioStreamMIDI.loop_count].
+				Returns [code]true[/code] if playback has reached the end of the song. Only meaningful once the [code]loop_enabled[/code] parameter is [code]false[/code], or after looping has exhausted the [code]loop_count[/code] parameter.
 			</description>
 		</method>
 	</methods>
