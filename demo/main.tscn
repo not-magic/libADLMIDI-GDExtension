@@ -29,6 +29,7 @@ text = "Play"
 
 [node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="." unique_id=395453540]
 stream = ExtResource("2_0xm2m")
+parameters/num_chips = 1
 parameters/volume_model = 14
 parameters/emulator = 3
 parameters/full_range_brightness = true
@@ -44,6 +45,7 @@ text = "Note"
 [node name="SequencerPlayer" type="AudioStreamPlayer" parent="." unique_id=85246252]
 stream = SubResource("AudioStreamMIDISequencer_nqwlg")
 autoplay = true
+parameters/volume_model = 1
 
 [connection signal="toggled" from="PlayButton" to="AudioStreamPlayer" method="set_playing"]
 [connection signal="button_down" from="NoteButton" to="." method="_on_note_button_button_down"]
