@@ -318,7 +318,7 @@ def render_sidebar(class_names):
 
 
 def find_addon_name(addons_dir):
-    """Return the addon's name, taken from its folder under demo/addons/."""
+    """Return the addon's name, taken from its folder under project/addons/."""
     addons_dir = Path(addons_dir)
     if not addons_dir.is_dir():
         return None
@@ -336,7 +336,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--src", default="doc_classes", help="Directory containing class XML files")
     parser.add_argument("--out", default="docs", help="Output directory for Markdown files")
-    parser.add_argument("--addons-dir", default="demo/addons", help="Directory to auto-detect the addon name from, for _Footer.md")
+    parser.add_argument("--addons-dir", default="project/addons", help="Directory to auto-detect the addon name from, for _Footer.md")
     parser.add_argument("--addon-name", default=None, help="Addon name shown in _Footer.md (overrides auto-detection from --addons-dir)")
     args = parser.parse_args()
 

@@ -5,7 +5,7 @@ import sys
 # You can find documentation for SCons and SConstruct files at:
 # https://scons.org/documentation.html
 
-ADDON_NAME = 'ADLMIDI'
+ADDON_NAME = 'adlmidi'
 
 
 # This lets SCons know that we're using godot-cpp, from the godot-cpp folder.
@@ -105,7 +105,7 @@ lib_filename = "{}{}{}{}".format(env.subst('$SHLIBPREFIX'), ADDON_NAME, env["suf
 
 # Creates a SCons target for the path with our sources.
 library = env.SharedLibrary(
-    "demo/addons/{}/bin/{}".format(ADDON_NAME, lib_filename),
+    "project/addons/{}/bin/{}".format(ADDON_NAME, lib_filename),
     source=sources,
 )
 
@@ -209,13 +209,13 @@ AlwaysBuild(tidy_sources)
 # the built extension into Godot's --doctool. Requires a template_debug build
 # (with doc data compiled in, see the GodotCPPDocData block above) and a
 # flatpak install of the Godot editor (org.godotengine.Godot). Run with
-# `scons docs`. Runs from demo/ since --doctool needs a Godot project
+# `scons docs`. Runs from project/ since --doctool needs a Godot project
 # (project.godot) to load the extension into.
 update_docs = Command(
     "update_docs",
     None,
     "flatpak run org.godotengine.Godot --doctool ../ --gdextension-docs",
-    chdir="demo",
+    chdir="project",
 )
 AlwaysBuild(update_docs)
 

@@ -1,9 +1,9 @@
 name: Release
 
 # Builds template_debug + template_release for linux/windows/macos/android/ios (arm64)/web, then
-# packages demo/addons/ADLMIDI/ (source-free, binaries for every platform
+# packages project/addons/adlmidi/ (source-free, binaries for every platform
 # included) into a zip attached to a GitHub Release. The zip's internal
-# layout is addons/ADLMIDI/..., so it extracts directly into a project's
+# layout is addons/adlmidi/..., so it extracts directly into a project's
 # root (res://). That zip is what's meant to be distributed -- either
 # linked directly, or used as the "Custom" download URL in a Godot Asset
 # Library submission, since the Asset Library's GitHub-commit-based
@@ -126,20 +126,20 @@ jobs:
 
       - name: Wrap iOS dylibs in xcframeworks
         if: matrix.platform == 'ios'
-        working-directory: demo/addons/ADLMIDI/bin
+        working-directory: project/addons/adlmidi/bin
         run: |
           for target in template_debug template_release; do
             xcodebuild -create-xcframework \
-              -library libADLMIDI.ios.$target.arm64.dylib \
-              -output libADLMIDI.ios.$target.xcframework
-            rm libADLMIDI.ios.$target.arm64.dylib
+              -library libadlmidi.ios.$target.arm64.dylib \
+              -output libadlmidi.ios.$target.xcframework
+            rm libadlmidi.ios.$target.arm64.dylib
           done
 
       - name: Upload binaries
         uses: actions/upload-artifact@v7
         with:
           name: adlmidi-bin-${{ matrix.name }}
-          path: demo/addons/ADLMIDI/bin/
+          path: project/addons/adlmidi/bin/
 
   package:
     name: Package addon
@@ -154,14 +154,14 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           pattern: adlmidi-bin-*
-          path: demo/addons/ADLMIDI/bin
+          path: project/addons/adlmidi/bin
           merge-multiple: true
 
       - name: Zip addon
         run: |
-          cp LICENSE demo/addons/ADLMIDI/LICENSE
-          cd demo
-          zip -r "${{ github.workspace }}/ADLMIDI.zip" addons/ADLMIDI
+          cp LICENSE project/addons/adlmidi/LICENSE
+          cd project
+          zip -r "${{ github.workspace }}/ADLMIDI.zip" addons/adlmidi
 
       - name: Create release
         uses: softprops/action-gh-release@v3

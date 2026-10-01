@@ -1,0 +1,26 @@
+[configuration]
+
+entry_symbol = "adlmidi_library_init"
+compatibility_minimum = "4.5"
+reloadable = true
+
+[libraries]
+
+linux.debug.x86_64 = "res://addons/adlmidi/bin/libadlmidi.linux.template_debug.x86_64.so"
+linux.release.x86_64 = "res://addons/adlmidi/bin/libadlmidi.linux.template_release.x86_64.so"
+windows.debug.x86_64 = "res://addons/adlmidi/bin/adlmidi.windows.template_debug.x86_64.dll"
+windows.release.x86_64 = "res://addons/adlmidi/bin/adlmidi.windows.template_release.x86_64.dll"
+macos.debug = "res://addons/adlmidi/bin/libadlmidi.macos.template_debug.universal.dylib"
+macos.release = "res://addons/adlmidi/bin/libadlmidi.macos.template_release.universal.dylib"
+android.debug.arm64 = "res://addons/adlmidi/bin/libadlmidi.android.template_debug.arm64.so"
+android.release.arm64 = "res://addons/adlmidi/bin/libadlmidi.android.template_release.arm64.so"
+ios.debug = "res://addons/adlmidi/bin/libadlmidi.ios.template_debug.xcframework"
+ios.release = "res://addons/adlmidi/bin/libadlmidi.ios.template_release.xcframework"
+web.debug.threads.wasm32 = "res://addons/adlmidi/bin/libadlmidi.web.template_debug.wasm32.wasm"
+web.release.threads.wasm32 = "res://addons/adlmidi/bin/libadlmidi.web.template_release.wasm32.wasm"
+web.debug.wasm32 = "res://addons/adlmidi/bin/libadlmidi.web.template_debug.wasm32.nothreads.wasm"
+web.release.wasm32 = "res://addons/adlmidi/bin/libadlmidi.web.template_release.wasm32.nothreads.wasm"
+
+[icons]
+
+AudioStreamMIDI = "res://addons/adlmidi/midi_file.svg"

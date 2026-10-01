@@ -10,7 +10,7 @@ metadata={
 
 [deps]
 
-source_file="res://addons/ADLMIDI/midi_file.svg"
+source_file="res://addons/adlmidi/midi_file.svg"
 dest_files=["res://.godot/imported/midi_file.svg-f4fd041e5c66c095a2d7acaf517b03c3.ctex"]
 
 [params]

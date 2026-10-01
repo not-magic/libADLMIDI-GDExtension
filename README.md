@@ -43,15 +43,15 @@ scons platform=linux target=template_debug -j$(nproc)
 
 Swap `platform=linux` for `windows` or `macos`, and use `target=template_release` for a release/export build. The first build compiles godot-cpp's full binding set and libADLMIDI from source, so it takes a while; rebuilds after that are incremental.
 
-The result is written to `demo/addons/ADLMIDI/bin/`, matching the paths already referenced by `demo/addons/ADLMIDI/adlmidi.gdextension` (e.g. `demo/addons/ADLMIDI/bin/libADLMIDI.linux.template_debug.x86_64.so`).
+The result is written to `project/addons/adlmidi/bin/`, matching the paths already referenced by `project/addons/adlmidi/adlmidi.gdextension` (e.g. `project/addons/adlmidi/bin/libadlmidi.linux.template_debug.x86_64.so`).
 
 See `CLAUDE.md` for more build/architecture detail.
 
 ## Using it in a Godot project
 
-To use this in your own Godot project, copy `demo/addons/ADLMIDI/` into your project's `res://addons/` folder, then reload the project. `AudioStreamMIDI` and `AudioStreamMIDISequencer` will show up as normal resource types; the addon shows up (and can be enabled/disabled) under Project Settings > Plugins.
+To use this in your own Godot project, copy `project/addons/adlmidi/` into your project's `res://addons/` folder, then reload the project. `AudioStreamMIDI` and `AudioStreamMIDISequencer` will show up as normal resource types; the addon shows up (and can be enabled/disabled) under Project Settings > Plugins.
 
-The `demo/` folder is itself a minimal Godot project with the addon already installed and enabled, useful as a starting point or for manually testing changes — open `demo/project.godot` in the editor after building.
+The `project/` folder is itself a minimal Godot project with the addon already installed and enabled, useful as a starting point or for manually testing changes — open `project/project.godot` in the editor after building.
 
 ### Playing a MIDI file
 
@@ -102,11 +102,11 @@ See `src/audio_stream_midi.h` for the full set of properties and methods on `Aud
 
 ## Status
 
-This extension builds and has been manually tested end-to-end in the Godot editor on Linux (see `demo/`). CI (`.github/workflows/build.yml`) builds and runs the standalone test suite (`tests/`) on Linux, Windows, and macOS on every push/PR, but the Windows/macOS builds haven't been manually exercised inside the Godot editor.
+This extension builds and has been manually tested end-to-end in the Godot editor on Linux (see `project/`). CI (`.github/workflows/build.yml`) builds and runs the standalone test suite (`tests/`) on Linux, Windows, and macOS on every push/PR, but the Windows/macOS builds haven't been manually exercised inside the Godot editor.
 
 ## Releases
 
-Pushing a `v*` tag (or running the "Release" workflow manually with a tag) builds `template_debug` and `template_release` for Linux, Windows, and macOS, then publishes a GitHub Release with a zip of the ready-to-install `demo/addons/ADLMIDI/` folder (binaries for every platform included) attached. The zip contains `addons/ADLMIDI/`, so extract it into your project's root folder.
+Pushing a `v*` tag (or running the "Release" workflow manually with a tag) builds `template_debug` and `template_release` for Linux, Windows, and macOS, then publishes a GitHub Release with a zip of the ready-to-install `project/addons/adlmidi/` folder (binaries for every platform included) attached. The zip contains `addons/adlmidi/`, so extract it into your project's root folder.
 
 ## License
 
