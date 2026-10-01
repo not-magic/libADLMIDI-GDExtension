@@ -1,4 +1,5 @@
 #include "resource_format_loader_midi.h"
+
 #include "audio_stream_midi.h"
 
 #include <godot_cpp/classes/file_access.hpp>
@@ -22,7 +23,7 @@ bool ResourceFormatLoaderMIDI::_handles_type(const StringName &p_type) const {
 }
 
 String ResourceFormatLoaderMIDI::_get_resource_type(const String &p_path) const {
-	String ext = p_path.get_extension().to_lower();
+	const String ext = p_path.get_extension().to_lower();
 	if (ext == "mid" || ext == "midi" || ext == "rmi" || ext == "xmi" || ext == "kar") {
 		return "AudioStreamMIDI";
 	}
@@ -30,12 +31,12 @@ String ResourceFormatLoaderMIDI::_get_resource_type(const String &p_path) const 
 }
 
 Variant ResourceFormatLoaderMIDI::_load(const String &p_path, const String &p_original_path, bool p_use_sub_threads, int32_t p_cache_mode) const {
-	Ref<FileAccess> file = FileAccess::open(p_path, FileAccess::READ);
+	const Ref<FileAccess> file = FileAccess::open(p_path, FileAccess::READ);
 	if (file.is_null()) {
 		return Variant((int)ERR_FILE_CANT_OPEN);
 	}
 
-	PackedByteArray data = file->get_buffer(file->get_length());
+	const PackedByteArray data = file->get_buffer(file->get_length());
 
 	Ref<AudioStreamMIDI> stream;
 	stream.instantiate();

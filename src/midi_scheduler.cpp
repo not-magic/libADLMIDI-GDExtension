@@ -2,79 +2,75 @@
 
 #include <algorithm>
 
-void MidiScheduler::reset() {
-	current_frame = 0;
-	message_queue.clear();
-	message_queue_dirty = false;
-}
+namespace {
 
-bool MidiScheduler::queue_message(int p_time, MessageType p_type, const MessageParams &p_params) {
-	if (p_time < current_frame) {
+bool try_queue_message(std::deque<MidiScheduler::QueuedMessage> &r_queue, bool &r_is_dirty, int p_current_frame_index, int p_frame_index, MidiScheduler::MessageType p_type, const MidiScheduler::MessageParams &p_params) {
+	if (p_frame_index < p_current_frame_index) {
 		return false;
 	}
 
-	QueuedMessage message;
-	message.type = p_type;
-	message.time = p_time;
-	message.params = p_params;
-	message_queue.push_back(message);
-	message_queue_dirty = true;
+	r_queue.push_back({ p_params, p_type, p_frame_index });
+	r_is_dirty = true;
 	return true;
 }
 
-void MidiScheduler::dispatch_message(const QueuedMessage &p_message) {
+void dispatch_message(ADL_MIDIPlayer *p_player, const MidiScheduler::QueuedMessage &p_message) {
 	switch (p_message.type) {
-		case MessageType::NOTE_ON: {
-			const NoteOnParams &p = p_message.params.note_on;
-			adl_rt_noteOn(player, p.channel, p.note, p.velocity);
+		case MidiScheduler::MessageType::NOTE_ON: {
+			const MidiScheduler::NoteOnParams &p = p_message.params.note_on;
+			adl_rt_noteOn(p_player, p.channel_index, p.note_index, p.velocity);
 		} break;
-		case MessageType::NOTE_OFF: {
-			const NoteOffParams &p = p_message.params.note_off;
-			adl_rt_noteOff(player, p.channel, p.note);
+		case MidiScheduler::MessageType::NOTE_OFF: {
+			const MidiScheduler::NoteOffParams &p = p_message.params.note_off;
+			adl_rt_noteOff(p_player, p.channel_index, p.note_index);
 		} break;
-		case MessageType::NOTE_AFTER_TOUCH: {
-			const NoteAfterTouchParams &p = p_message.params.note_after_touch;
-			adl_rt_noteAfterTouch(player, p.channel, p.note, p.value);
+		case MidiScheduler::MessageType::NOTE_AFTER_TOUCH: {
+			const MidiScheduler::NoteAfterTouchParams &p = p_message.params.note_after_touch;
+			adl_rt_noteAfterTouch(p_player, p.channel_index, p.note_index, p.value);
 		} break;
-		case MessageType::CHANNEL_AFTER_TOUCH: {
-			const ChannelAfterTouchParams &p = p_message.params.channel_after_touch;
-			adl_rt_channelAfterTouch(player, p.channel, p.value);
+		case MidiScheduler::MessageType::CHANNEL_AFTER_TOUCH: {
+			const MidiScheduler::ChannelAfterTouchParams &p = p_message.params.channel_after_touch;
+			adl_rt_channelAfterTouch(p_player, p.channel_index, p.value);
 		} break;
-		case MessageType::CONTROLLER_CHANGE: {
-			const ControllerChangeParams &p = p_message.params.controller_change;
-			adl_rt_controllerChange(player, p.channel, p.controller, p.value);
+		case MidiScheduler::MessageType::CONTROLLER_CHANGE: {
+			const MidiScheduler::ControllerChangeParams &p = p_message.params.controller_change;
+			adl_rt_controllerChange(p_player, p.channel_index, p.controller_id, p.value);
 		} break;
-		case MessageType::PATCH_CHANGE: {
-			const PatchChangeParams &p = p_message.params.patch_change;
-			adl_rt_patchChange(player, p.channel, p.patch);
+		case MidiScheduler::MessageType::PATCH_CHANGE: {
+			const MidiScheduler::PatchChangeParams &p = p_message.params.patch_change;
+			adl_rt_patchChange(p_player, p.channel_index, p.patch_index);
 		} break;
-		case MessageType::PITCH_BEND: {
-			const PitchBendParams &p = p_message.params.pitch_bend;
-			adl_rt_pitchBend(player, p.channel, p.value);
+		case MidiScheduler::MessageType::PITCH_BEND: {
+			const MidiScheduler::PitchBendParams &p = p_message.params.pitch_bend;
+			adl_rt_pitchBend(p_player, p.channel_index, p.value);
 		} break;
-		case MessageType::PANIC:
-			adl_panic(player);
+		case MidiScheduler::MessageType::PANIC:
+			adl_panic(p_player);
 			break;
-		case MessageType::RESET_STATE:
-			adl_rt_resetState(player);
+		case MidiScheduler::MessageType::RESET_STATE:
+			adl_rt_resetState(p_player);
 			break;
-	}
-
-	if (dispatch_callback) {
-		dispatch_callback(dispatch_callback_userdata, p_message, current_frame);
 	}
 }
 
-bool MidiScheduler::mix(AudioFrame *p_dst_buffer, int p_frame_count) {
+} // namespace
+
+void MidiScheduler::reset() {
+	current_frame_index = 0;
+	message_queue.clear();
+	is_message_queue_dirty = false;
+}
+
+bool MidiScheduler::try_mix(AudioFrame *p_dst_buffer, int p_frame_count) {
 	if (!player) {
 		return false;
 	}
 
-	if (message_queue_dirty) {
-		std::sort(message_queue.begin(), message_queue.end(), [](const QueuedMessage &a, const QueuedMessage &b) {
-			return a.time < b.time;
+	if (is_message_queue_dirty) {
+		std::sort(message_queue.begin(), message_queue.end(), [](const QueuedMessage &p_a, const QueuedMessage &p_b) {
+			return p_a.frame_index < p_b.frame_index;
 		});
-		message_queue_dirty = false;
+		is_message_queue_dirty = false;
 	}
 
 	ADLMIDI_AudioFormat format;
@@ -82,83 +78,85 @@ bool MidiScheduler::mix(AudioFrame *p_dst_buffer, int p_frame_count) {
 	format.containerSize = sizeof(float);
 	format.sampleOffset = sizeof(AudioFrame);
 
-	int batch_end_frame = current_frame + p_frame_count;
-	int frames_filled = 0;
+	const int batch_end_frame_index = current_frame_index + p_frame_count;
+	int filled_frame_total = 0;
 
-	auto process_until = [&](int end_frame) {
-		const int frames_to_process = end_frame - current_frame;
-		if (frames_to_process <= 0) {
+	auto process_until = [&](int p_end_frame_index) {
+		const int process_frame_total = p_end_frame_index - current_frame_index;
+		if (process_frame_total <= 0) {
 			return;
 		}
 
-		AudioFrame *segment_dst = p_dst_buffer + frames_filled;
+		AudioFrame *segment_dst = p_dst_buffer + filled_frame_total;
 		ADL_UInt8 *left = reinterpret_cast<ADL_UInt8 *>(&segment_dst[0].left);
 		ADL_UInt8 *right = reinterpret_cast<ADL_UInt8 *>(&segment_dst[0].right);
 
-		int frames_generated = adl_generateFormat(player, frames_to_process * 2, left, right, &format) / 2;
-		frames_filled += frames_generated;
-		current_frame += frames_generated;
+		const int generated_frame_total = adl_generateFormat(player, process_frame_total * 2, left, right, &format) / 2;
+		filled_frame_total += generated_frame_total;
+		current_frame_index += generated_frame_total;
 	};
 
-	while (!message_queue.empty() && message_queue.front().time < batch_end_frame) {
-		process_until(message_queue.front().time);
-		dispatch_message(message_queue.front());
+	while (!message_queue.empty() && message_queue.front().frame_index < batch_end_frame_index) {
+		const QueuedMessage message = message_queue.front();
+		process_until(message.frame_index);
+		dispatch_message(player, message);
+		if (dispatch_callback) {
+			dispatch_callback(dispatch_callback_userdata, message, current_frame_index);
+		}
 		message_queue.pop_front();
 	}
 
-	process_until(batch_end_frame);
+	process_until(batch_end_frame_index);
 
 	return true;
 }
 
-bool MidiScheduler::note_on(int p_time, int p_channel, int p_note, int p_velocity) {
+bool MidiScheduler::try_note_on(int p_frame_index, int p_channel_index, int p_note_index, int p_velocity) {
 	MessageParams params{};
-	params.note_on = { (ADL_UInt8)p_channel, (ADL_UInt8)p_note, (ADL_UInt8)p_velocity };
-	return queue_message(p_time, MessageType::NOTE_ON, params);
+	params.note_on = { (ADL_UInt8)p_channel_index, (ADL_UInt8)p_note_index, (ADL_UInt8)p_velocity };
+	return try_queue_message(message_queue, is_message_queue_dirty, current_frame_index, p_frame_index, MessageType::NOTE_ON, params);
 }
 
-bool MidiScheduler::note_off(int p_time, int p_channel, int p_note) {
+bool MidiScheduler::try_note_off(int p_frame_index, int p_channel_index, int p_note_index) {
 	MessageParams params{};
-	params.note_off = { (ADL_UInt8)p_channel, (ADL_UInt8)p_note };
-	return queue_message(p_time, MessageType::NOTE_OFF, params);
+	params.note_off = { (ADL_UInt8)p_channel_index, (ADL_UInt8)p_note_index };
+	return try_queue_message(message_queue, is_message_queue_dirty, current_frame_index, p_frame_index, MessageType::NOTE_OFF, params);
 }
 
-bool MidiScheduler::note_after_touch(int p_time, int p_channel, int p_note, int p_value) {
+bool MidiScheduler::try_note_after_touch(int p_frame_index, int p_channel_index, int p_note_index, int p_value) {
 	MessageParams params{};
-	params.note_after_touch = { (ADL_UInt8)p_channel, (ADL_UInt8)p_note, (ADL_UInt8)p_value };
-	return queue_message(p_time, MessageType::NOTE_AFTER_TOUCH, params);
+	params.note_after_touch = { (ADL_UInt8)p_channel_index, (ADL_UInt8)p_note_index, (ADL_UInt8)p_value };
+	return try_queue_message(message_queue, is_message_queue_dirty, current_frame_index, p_frame_index, MessageType::NOTE_AFTER_TOUCH, params);
 }
 
-bool MidiScheduler::channel_after_touch(int p_time, int p_channel, int p_value) {
+bool MidiScheduler::try_channel_after_touch(int p_frame_index, int p_channel_index, int p_value) {
 	MessageParams params{};
-	params.channel_after_touch = { (ADL_UInt8)p_channel, (ADL_UInt8)p_value };
-	return queue_message(p_time, MessageType::CHANNEL_AFTER_TOUCH, params);
+	params.channel_after_touch = { (ADL_UInt8)p_channel_index, (ADL_UInt8)p_value };
+	return try_queue_message(message_queue, is_message_queue_dirty, current_frame_index, p_frame_index, MessageType::CHANNEL_AFTER_TOUCH, params);
 }
 
-bool MidiScheduler::controller_change(int p_time, int p_channel, int p_controller, int p_value) {
+bool MidiScheduler::try_controller_change(int p_frame_index, int p_channel_index, int p_controller_id, int p_value) {
 	MessageParams params{};
-	params.controller_change = { (ADL_UInt8)p_channel, (ADL_UInt8)p_controller, (ADL_UInt8)p_value };
-	return queue_message(p_time, MessageType::CONTROLLER_CHANGE, params);
+	params.controller_change = { (ADL_UInt8)p_channel_index, (ADL_UInt8)p_controller_id, (ADL_UInt8)p_value };
+	return try_queue_message(message_queue, is_message_queue_dirty, current_frame_index, p_frame_index, MessageType::CONTROLLER_CHANGE, params);
 }
 
-bool MidiScheduler::patch_change(int p_time, int p_channel, int p_patch) {
+bool MidiScheduler::try_patch_change(int p_frame_index, int p_channel_index, int p_patch_index) {
 	MessageParams params{};
-	params.patch_change = { (ADL_UInt8)p_channel, (ADL_UInt8)p_patch };
-	return queue_message(p_time, MessageType::PATCH_CHANGE, params);
+	params.patch_change = { (ADL_UInt8)p_channel_index, (ADL_UInt8)p_patch_index };
+	return try_queue_message(message_queue, is_message_queue_dirty, current_frame_index, p_frame_index, MessageType::PATCH_CHANGE, params);
 }
 
-bool MidiScheduler::pitch_bend(int p_time, int p_channel, int p_value) {
+bool MidiScheduler::try_pitch_bend(int p_frame_index, int p_channel_index, int p_value) {
 	MessageParams params{};
-	params.pitch_bend = { (ADL_UInt8)p_channel, (ADL_UInt16)p_value };
-	return queue_message(p_time, MessageType::PITCH_BEND, params);
+	params.pitch_bend = { (ADL_UInt8)p_channel_index, (ADL_UInt16)p_value };
+	return try_queue_message(message_queue, is_message_queue_dirty, current_frame_index, p_frame_index, MessageType::PITCH_BEND, params);
 }
 
-bool MidiScheduler::panic(int p_time) {
-	MessageParams params{};
-	return queue_message(p_time, MessageType::PANIC, params);
+bool MidiScheduler::try_panic(int p_frame_index) {
+	return try_queue_message(message_queue, is_message_queue_dirty, current_frame_index, p_frame_index, MessageType::PANIC, {});
 }
 
-bool MidiScheduler::reset_state(int p_time) {
-	MessageParams params{};
-	return queue_message(p_time, MessageType::RESET_STATE, params);
+bool MidiScheduler::try_reset_state(int p_frame_index) {
+	return try_queue_message(message_queue, is_message_queue_dirty, current_frame_index, p_frame_index, MessageType::RESET_STATE, {});
 }

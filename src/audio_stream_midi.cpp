@@ -1,5 +1,6 @@
 #include "audio_stream_midi.h"
 
+#include <adlmidi.h>
 #include <godot_cpp/classes/audio_server.hpp>
 #include <godot_cpp/classes/global_constants.hpp>
 #include <godot_cpp/core/class_db.hpp>
@@ -18,6 +19,20 @@ MidiSynthConfig make_info_config() {
 	return config;
 }
 
+void close_info_player(ADL_MIDIPlayer *&r_player) {
+	if (r_player) {
+		adl_close(r_player);
+		r_player = nullptr;
+	}
+}
+
+ADL_MIDIPlayer *ensure_info_player(const AudioStreamMIDI &p_stream, ADL_MIDIPlayer *&r_player) {
+	if (!r_player) {
+		r_player = p_stream.create_player(ADL_CHIP_SAMPLE_RATE, make_info_config(), -1, true, -1);
+	}
+	return r_player;
+}
+
 } // namespace
 
 // ============================== AudioStreamMIDI ==============================
@@ -26,16 +41,16 @@ AudioStreamMIDI::AudioStreamMIDI() {
 }
 
 AudioStreamMIDI::~AudioStreamMIDI() {
-	invalidate_info_player();
+	close_info_player(info_player);
 }
 
-ADL_MIDIPlayer *AudioStreamMIDI::create_player(long p_sample_rate, const MidiSynthConfig &p_config, int p_song_number, bool p_is_loop_on, int p_loop_count) const {
-	ADL_MIDIPlayer *p = create_base_player(p_sample_rate, p_config);
+ADL_MIDIPlayer *AudioStreamMIDI::create_player(long p_sample_rate, const MidiSynthConfig &p_config, int p_song_number, bool p_use_loop, int p_loop_count) const {
+	ADL_MIDIPlayer *const p = create_base_player(p_sample_rate, p_config);
 	if (!p) {
 		return nullptr;
 	}
 
-	adl_setLoopEnabled(p, p_is_loop_on ? 1 : 0);
+	adl_setLoopEnabled(p, p_use_loop ? 1 : 0);
 	adl_setLoopCount(p, p_loop_count);
 
 	if (!midi_data.is_empty()) {
@@ -53,20 +68,6 @@ ADL_MIDIPlayer *AudioStreamMIDI::create_player(long p_sample_rate, const MidiSyn
 	return p;
 }
 
-ADL_MIDIPlayer *AudioStreamMIDI::ensure_info_player() const {
-	if (!info_player) {
-		info_player = create_player(ADL_CHIP_SAMPLE_RATE, make_info_config(), -1, true, -1);
-	}
-	return info_player;
-}
-
-void AudioStreamMIDI::invalidate_info_player() const {
-	if (info_player) {
-		adl_close(info_player);
-		info_player = nullptr;
-	}
-}
-
 Ref<AudioStreamPlayback> AudioStreamMIDI::_instantiate_playback() const {
 	Ref<AudioStreamPlaybackMIDI> playback;
 	playback.instantiate();
@@ -79,7 +80,7 @@ String AudioStreamMIDI::_get_stream_name() const {
 }
 
 double AudioStreamMIDI::_get_length() const {
-	ADL_MIDIPlayer *p = ensure_info_player();
+	ADL_MIDIPlayer *const p = ensure_info_player(*this, info_player);
 	return p ? adl_totalTimeLength(p) : 0.0;
 }
 
@@ -96,17 +97,17 @@ TypedArray<Dictionary> AudioStreamMIDI::_get_parameter_list() const {
 }
 
 void AudioStreamMIDI::_on_config_changed() {
-	invalidate_info_player();
+	close_info_player(info_player);
 }
 
 void AudioStreamMIDI::set_midi_data(const PackedByteArray &p_data) {
 	midi_data = p_data;
-	invalidate_info_player();
+	close_info_player(info_player);
 	emit_changed();
 }
 
 String AudioStreamMIDI::get_title() const {
-	ADL_MIDIPlayer *p = ensure_info_player();
+	ADL_MIDIPlayer *const p = ensure_info_player(*this, info_player);
 	if (!p) {
 		return String();
 	}
@@ -115,7 +116,7 @@ String AudioStreamMIDI::get_title() const {
 }
 
 String AudioStreamMIDI::get_copyright() const {
-	ADL_MIDIPlayer *p = ensure_info_player();
+	ADL_MIDIPlayer *const p = ensure_info_player(*this, info_player);
 	if (!p) {
 		return String();
 	}
@@ -124,12 +125,12 @@ String AudioStreamMIDI::get_copyright() const {
 }
 
 int AudioStreamMIDI::get_track_count() const {
-	ADL_MIDIPlayer *p = ensure_info_player();
+	ADL_MIDIPlayer *const p = ensure_info_player(*this, info_player);
 	return p ? (int)adl_metaTrackTitleCount(p) : 0;
 }
 
 String AudioStreamMIDI::get_track_title(int p_index) const {
-	ADL_MIDIPlayer *p = ensure_info_player();
+	ADL_MIDIPlayer *const p = ensure_info_player(*this, info_player);
 	if (!p) {
 		return String();
 	}
@@ -138,17 +139,17 @@ String AudioStreamMIDI::get_track_title(int p_index) const {
 }
 
 int AudioStreamMIDI::get_songs_count() const {
-	ADL_MIDIPlayer *p = ensure_info_player();
+	ADL_MIDIPlayer *const p = ensure_info_player(*this, info_player);
 	return p ? adl_getSongsCount(p) : 0;
 }
 
 double AudioStreamMIDI::get_loop_start_time() const {
-	ADL_MIDIPlayer *p = ensure_info_player();
+	ADL_MIDIPlayer *const p = ensure_info_player(*this, info_player);
 	return p ? adl_loopStartTime(p) : -1.0;
 }
 
 double AudioStreamMIDI::get_loop_end_time() const {
-	ADL_MIDIPlayer *p = ensure_info_player();
+	ADL_MIDIPlayer *const p = ensure_info_player(*this, info_player);
 	return p ? adl_loopEndTime(p) : -1.0;
 }
 
@@ -158,7 +159,7 @@ int AudioStreamMIDI::get_bank_count() {
 
 String AudioStreamMIDI::get_bank_name(int p_index) {
 	const char *const *names = adl_getBankNames();
-	int count = adl_getBanksCount();
+	const int count = adl_getBanksCount();
 	if (!names || p_index < 0 || p_index >= count) {
 		return String();
 	}
@@ -211,7 +212,7 @@ void AudioStreamPlaybackMIDI::_start(double p_from_pos) {
 
 	if (stream.is_valid()) {
 		mix_rate = AudioServer::get_singleton()->get_mix_rate();
-		player = stream->create_player((long)mix_rate, synth_config, song_number, is_loop_on, loop_count);
+		player = stream->create_player((long)mix_rate, synth_config, song_number, use_loop, loop_count);
 	}
 
 	if (player) {
@@ -259,14 +260,13 @@ int32_t AudioStreamPlaybackMIDI::_mix_resampled(AudioFrame *p_dst_buffer, int32_
 
 	ADL_UInt8 *left = reinterpret_cast<ADL_UInt8 *>(&p_dst_buffer[0].left);
 	ADL_UInt8 *right = reinterpret_cast<ADL_UInt8 *>(&p_dst_buffer[0].right);
-	int sample_count = p_frame_count * 2;
+	const int sample_count = p_frame_count * 2;
 
-	int got = adl_playFormat(player, sample_count, left, right, &format);
+	const int got = adl_playFormat(player, sample_count, left, right, &format);
 
-	int frames_got = got / 2;
+	const int frames_got = got / 2;
 	if (frames_got < p_frame_count) {
 		std::memset(p_dst_buffer + frames_got, 0, sizeof(AudioFrame) * (size_t)(p_frame_count - frames_got));
-		// Reached the end of the song with looping disabled (or loop count exhausted).
 		is_active = false;
 	}
 
@@ -281,11 +281,11 @@ void AudioStreamPlaybackMIDI::_set_parameter(const StringName &p_name, const Var
 	if (p_name == StringName("song_number")) {
 		song_number = p_value;
 	} else if (p_name == StringName("loop_enabled")) {
-		is_loop_on = p_value;
+		use_loop = p_value;
 	} else if (p_name == StringName("loop_count")) {
 		loop_count = p_value;
 	} else {
-		synth_config.set_parameter(p_name, p_value);
+		synth_config.try_set_parameter(p_name, p_value);
 	}
 }
 
@@ -294,13 +294,13 @@ Variant AudioStreamPlaybackMIDI::_get_parameter(const StringName &p_name) const 
 		return song_number;
 	}
 	if (p_name == StringName("loop_enabled")) {
-		return is_loop_on;
+		return use_loop;
 	}
 	if (p_name == StringName("loop_count")) {
 		return loop_count;
 	}
 	Variant value;
-	synth_config.find_parameter(p_name, value);
+	synth_config.try_get_parameter(p_name, value);
 	return value;
 }
 

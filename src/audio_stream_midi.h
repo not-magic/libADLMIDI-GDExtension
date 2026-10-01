@@ -4,30 +4,23 @@
 
 #include <godot_cpp/classes/audio_stream_playback_resampled.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
-#include <godot_cpp/variant/string.hpp>
 
-#include <adlmidi.h>
+struct ADL_MIDIPlayer;
 
 namespace godot {
 
 class AudioStreamPlaybackMIDI;
 
-// A playable MIDI song rendered through libADLMIDI's OPL3 FM emulation.
-// Holds the raw MIDI bytes and exposes read-only song info; all editable
-// settings are AudioStreamPlayer parameters (see _get_parameter_list). Each
-// playback instance gets its own ADL_MIDIPlayer so the same resource can be
-// played concurrently by multiple AudioStreamPlayers.
+// A MIDI song rendered through libADLMIDI. Read-only: editable settings are
+// AudioStreamPlayer parameters (see _get_parameter_list).
 class AudioStreamMIDI : public AudioStreamMIDIBase {
-	GDCLASS(AudioStreamMIDI, AudioStreamMIDIBase)
+	GDCLASS(AudioStreamMIDI, AudioStreamMIDIBase) // NOLINT
 
 	friend class AudioStreamPlaybackMIDI;
 
 	PackedByteArray midi_data;
 
 	mutable ADL_MIDIPlayer *info_player = nullptr;
-
-	ADL_MIDIPlayer *ensure_info_player() const;
-	void invalidate_info_player() const;
 
 protected:
 	static void _bind_methods();
@@ -37,8 +30,7 @@ public:
 	AudioStreamMIDI();
 	~AudioStreamMIDI();
 
-	// Returns nullptr if libADLMIDI failed to initialize or load the bank/data.
-	ADL_MIDIPlayer *create_player(long p_sample_rate, const MidiSynthConfig &p_config, int p_song_number, bool p_is_loop_on, int p_loop_count) const;
+	ADL_MIDIPlayer *create_player(long p_sample_rate, const MidiSynthConfig &p_config, int p_song_number, bool p_use_loop, int p_loop_count) const;
 
 	virtual Ref<AudioStreamPlayback> _instantiate_playback() const override;
 	virtual String _get_stream_name() const override;
@@ -61,22 +53,19 @@ public:
 	static String get_bank_name(int p_index);
 };
 
-// Per-playback instance: owns its own ADL_MIDIPlayer so several
-// AudioStreamPlayers can play the same AudioStreamMIDI independently,
-// auto-playing through libADLMIDI's built-in sequencer. For driving the
-// synth live instead of playing a fixed song, see AudioStreamMIDISequencer.
+// Owns its own ADL_MIDIPlayer, so one AudioStreamMIDI can play concurrently.
 class AudioStreamPlaybackMIDI : public AudioStreamPlaybackResampled {
-	GDCLASS(AudioStreamPlaybackMIDI, AudioStreamPlaybackResampled)
+	GDCLASS(AudioStreamPlaybackMIDI, AudioStreamPlaybackResampled) // NOLINT
 
 	friend class AudioStreamMIDI;
 
 	Ref<AudioStreamMIDI> stream;
 	ADL_MIDIPlayer *player = nullptr;
 	MidiSynthConfig synth_config;
+	float mix_rate = 44100.0f;
 	int song_number = -1;
 	int loop_count = -1;
-	float mix_rate = 44100.0f;
-	bool is_loop_on = true;
+	bool use_loop = true;
 	bool is_active = false;
 
 protected:

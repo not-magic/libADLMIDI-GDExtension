@@ -28,10 +28,10 @@ void MidiSynthConfig::append_parameters(TypedArray<Dictionary> &r_parameters) {
 	r_parameters.push_back(make_stream_parameter("four_op_channels", Variant::INT, PROPERTY_HINT_RANGE, "-1,128,1", defaults.four_op_channel_total));
 	r_parameters.push_back(make_stream_parameter("volume_model", Variant::INT, PROPERTY_HINT_ENUM, "Auto,Generic,Native OPL3,DMX,Apogee,9X,DMX Fixed,Apogee Fixed,AIL,9X Generic FM,HMI,HMI Old,MS AdLib,IMF Creator,O'Connell", defaults.volume_model_id));
 	r_parameters.push_back(make_stream_parameter("emulator", Variant::INT, PROPERTY_HINT_ENUM, "Nuked,Nuked Fast,DosBox,Opal,Java,ESFMu,MAME OPL2,YMFM OPL2,YMFM OPL3,Nuked OPL2 LLE,Nuked OPL3 LLE,Nuked OPL2 Lite,Nuked CQM,DosBox OPL2", defaults.emulator_id));
-	r_parameters.push_back(make_stream_parameter("full_range_brightness", Variant::BOOL, PROPERTY_HINT_NONE, "", defaults.is_full_range_brightness));
+	r_parameters.push_back(make_stream_parameter("full_range_brightness", Variant::BOOL, PROPERTY_HINT_NONE, "", defaults.use_full_range_brightness));
 }
 
-bool MidiSynthConfig::set_parameter(const StringName &p_name, const Variant &p_value) {
+bool MidiSynthConfig::try_set_parameter(const StringName &p_name, const Variant &p_value) {
 	if (p_name == StringName("embedded_bank")) {
 		embedded_bank_index = p_value;
 	} else if (p_name == StringName("num_chips")) {
@@ -43,14 +43,14 @@ bool MidiSynthConfig::set_parameter(const StringName &p_name, const Variant &p_v
 	} else if (p_name == StringName("emulator")) {
 		emulator_id = p_value;
 	} else if (p_name == StringName("full_range_brightness")) {
-		is_full_range_brightness = p_value;
+		use_full_range_brightness = p_value;
 	} else {
 		return false;
 	}
 	return true;
 }
 
-bool MidiSynthConfig::find_parameter(const StringName &p_name, Variant &r_value) const {
+bool MidiSynthConfig::try_get_parameter(const StringName &p_name, Variant &r_value) const {
 	if (p_name == StringName("embedded_bank")) {
 		r_value = embedded_bank_index;
 	} else if (p_name == StringName("num_chips")) {
@@ -62,7 +62,7 @@ bool MidiSynthConfig::find_parameter(const StringName &p_name, Variant &r_value)
 	} else if (p_name == StringName("emulator")) {
 		r_value = emulator_id;
 	} else if (p_name == StringName("full_range_brightness")) {
-		r_value = is_full_range_brightness;
+		r_value = use_full_range_brightness;
 	} else {
 		return false;
 	}
@@ -82,7 +82,7 @@ TypedArray<Dictionary> AudioStreamMIDIBase::_get_parameter_list() const {
 }
 
 ADL_MIDIPlayer *AudioStreamMIDIBase::create_base_player(long p_sample_rate, const MidiSynthConfig &p_config) const {
-	ADL_MIDIPlayer *p = adl_init(p_sample_rate);
+	ADL_MIDIPlayer *const p = adl_init(p_sample_rate);
 	if (!p) {
 		UtilityFunctions::push_error("libADLMIDI: failed to initialize: ", String(adl_errorString()));
 		return nullptr;
@@ -92,7 +92,7 @@ ADL_MIDIPlayer *AudioStreamMIDIBase::create_base_player(long p_sample_rate, cons
 	adl_setVolumeRangeModel(p, p_config.volume_model_id);
 	adl_switchEmulator(p, p_config.emulator_id);
 	adl_setNumFourOpsChn(p, p_config.four_op_channel_total);
-	adl_setFullRangeBrightness(p, p_config.is_full_range_brightness ? 1 : 0);
+	adl_setFullRangeBrightness(p, p_config.use_full_range_brightness ? 1 : 0);
 
 	if (!bank_data.is_empty()) {
 		if (adl_openBankData(p, bank_data.ptr(), (unsigned long)bank_data.size()) < 0) {

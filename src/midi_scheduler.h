@@ -4,18 +4,9 @@
 
 #include <deque>
 
-// Sample-accurate scheduler for real-time libADLMIDI events: note_on/
-// note_off/... calls are queued by target frame, then mix() generates audio
-// up to each due message and dispatches it in chronological order.
-//
-// Deliberately has no dependency on Godot or godot-cpp so it can be unit
-// tested directly (see tests/runtime_scheduling_test.cpp).
-// AudioStreamPlaybackMIDISequencer (src/audio_stream_midi_sequencer.h) is a thin
-// GDExtension wrapper around it, handling player lifecycle and binding.
-//
-// Does not own the ADL_MIDIPlayer it operates on -- the caller creates and
-// destroys it, and must call set_player() again (nullptr, then the new
-// pointer) whenever it does.
+// Sample-accurate queue of real-time libADLMIDI events. No Godot dependency,
+// so tests can use it directly. Does not own the player: call set_player()
+// again (nullptr first) whenever the caller recreates it.
 class MidiScheduler {
 public:
 	enum class MessageType {
@@ -31,44 +22,44 @@ public:
 	};
 
 	struct NoteOnParams {
-		ADL_UInt8 channel;
-		ADL_UInt8 note;
+		ADL_UInt8 channel_index;
+		ADL_UInt8 note_index;
 		ADL_UInt8 velocity;
 	};
 
 	struct NoteOffParams {
-		ADL_UInt8 channel;
-		ADL_UInt8 note;
+		ADL_UInt8 channel_index;
+		ADL_UInt8 note_index;
 	};
 
 	struct NoteAfterTouchParams {
-		ADL_UInt8 channel;
-		ADL_UInt8 note;
+		ADL_UInt8 channel_index;
+		ADL_UInt8 note_index;
 		ADL_UInt8 value;
 	};
 
 	struct ChannelAfterTouchParams {
-		ADL_UInt8 channel;
+		ADL_UInt8 channel_index;
 		ADL_UInt8 value;
 	};
 
 	struct ControllerChangeParams {
-		ADL_UInt8 channel;
-		ADL_UInt8 controller;
+		ADL_UInt8 channel_index;
+		ADL_UInt8 controller_id;
 		ADL_UInt8 value;
 	};
 
 	struct PatchChangeParams {
-		ADL_UInt8 channel;
-		ADL_UInt8 patch;
+		ADL_UInt8 channel_index;
+		ADL_UInt8 patch_index;
 	};
 
 	struct PitchBendParams {
-		ADL_UInt8 channel;
+		ADL_UInt8 channel_index;
 		ADL_UInt16 value;
 	};
 
-	// PANIC and RESET_STATE carry no parameters; they need no union member.
+	// PANIC and RESET_STATE carry no parameters.
 	union MessageParams {
 		NoteOnParams note_on;
 		NoteOffParams note_off;
@@ -80,9 +71,9 @@ public:
 	};
 
 	struct QueuedMessage {
-		MessageType type;
-		int time;
 		MessageParams params;
+		MessageType type;
+		int frame_index;
 	};
 
 	struct AudioFrame {
@@ -90,27 +81,16 @@ public:
 		float right;
 	};
 
-	// Invoked right after a message is dispatched to the player, with the
-	// frame it was dispatched at. Purely an observability hook for tests;
-	// production code can leave it unset. Never called for a message
-	// queue_message() rejected for being scheduled in the past.
-	using DispatchCallback = void (*)(void *userdata, const QueuedMessage &message, int frame);
+	// Test hook, called right after a message is dispatched.
+	using DispatchCallback = void (*)(void *p_userdata, const QueuedMessage &p_message, int p_frame_index);
 
 private:
 	ADL_MIDIPlayer *player = nullptr;
-	int current_frame = 0;
-	std::deque<QueuedMessage> message_queue;
-	bool message_queue_dirty = false;
 	DispatchCallback dispatch_callback = nullptr;
 	void *dispatch_callback_userdata = nullptr;
-
-	// Appends a message to the queue, unless p_time is already in the past
-	// (before current_frame), in which case it's discarded. Returns whether
-	// the message was queued.
-	bool queue_message(int p_time, MessageType p_type, const MessageParams &p_params);
-
-	// Applies a due message to the player via the matching adl_rt_* call.
-	void dispatch_message(const QueuedMessage &p_message);
+	std::deque<QueuedMessage> message_queue;
+	int current_frame_index = 0;
+	bool is_message_queue_dirty = false;
 
 public:
 	void set_player(ADL_MIDIPlayer *p_player) { player = p_player; }
@@ -120,29 +100,23 @@ public:
 		dispatch_callback_userdata = p_userdata;
 	}
 
-	// Resets current_frame to 0 and drops any pending messages. Call when
-	// (re)starting playback.
 	void reset();
 
-	int get_current_frame() const { return current_frame; }
+	int get_current_frame() const { return current_frame_index; }
 	size_t get_queue_size() const { return message_queue.size(); }
 
-	// Sorts the queue by time (only if it's changed since the last sort),
-	// then fills p_dst_buffer with p_frame_count
-	// frames of interleaved float stereo audio, alternating between
-	// generating audio up to the next due message and dispatching every
-	// message that's become due, so messages take effect at the right
-	// frame within the buffer. Returns false (without touching the buffer)
-	// if no player has been set.
-	bool mix(AudioFrame *p_dst_buffer, int p_frame_count);
+	// Fills p_dst_buffer, dispatching each due message at its exact frame.
+	// Returns false, leaving the buffer untouched, if no player is set.
+	bool try_mix(AudioFrame *p_dst_buffer, int p_frame_count);
 
-	bool note_on(int p_time, int p_channel, int p_note, int p_velocity);
-	bool note_off(int p_time, int p_channel, int p_note);
-	bool note_after_touch(int p_time, int p_channel, int p_note, int p_value);
-	bool channel_after_touch(int p_time, int p_channel, int p_value);
-	bool controller_change(int p_time, int p_channel, int p_controller, int p_value);
-	bool patch_change(int p_time, int p_channel, int p_patch);
-	bool pitch_bend(int p_time, int p_channel, int p_value);
-	bool panic(int p_time);
-	bool reset_state(int p_time);
+	// Each returns false if the message was discarded for being in the past.
+	bool try_note_on(int p_frame_index, int p_channel_index, int p_note_index, int p_velocity);
+	bool try_note_off(int p_frame_index, int p_channel_index, int p_note_index);
+	bool try_note_after_touch(int p_frame_index, int p_channel_index, int p_note_index, int p_value);
+	bool try_channel_after_touch(int p_frame_index, int p_channel_index, int p_value);
+	bool try_controller_change(int p_frame_index, int p_channel_index, int p_controller_id, int p_value);
+	bool try_patch_change(int p_frame_index, int p_channel_index, int p_patch_index);
+	bool try_pitch_bend(int p_frame_index, int p_channel_index, int p_value);
+	bool try_panic(int p_frame_index);
+	bool try_reset_state(int p_frame_index);
 };

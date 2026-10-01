@@ -5,7 +5,7 @@
 namespace godot {
 
 class ResourceFormatLoaderMIDI : public ResourceFormatLoader {
-	GDCLASS(ResourceFormatLoaderMIDI, ResourceFormatLoader)
+	GDCLASS(ResourceFormatLoaderMIDI, ResourceFormatLoader) // NOLINT
 
 protected:
 	static void _bind_methods() {}

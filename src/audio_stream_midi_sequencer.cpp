@@ -1,5 +1,6 @@
 #include "audio_stream_midi_sequencer.h"
 
+#include <adlmidi.h>
 #include <godot_cpp/classes/audio_server.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
@@ -8,6 +9,18 @@
 #include <cstring>
 
 using namespace godot;
+
+namespace {
+
+void report_if_discarded(bool p_is_queued, int p_frame_index, int p_current_frame_index) {
+	if (!p_is_queued) {
+		UtilityFunctions::push_error(
+				"AudioStreamPlaybackMIDISequencer: discarding message scheduled at frame ", p_frame_index,
+				", which is before the current frame ", p_current_frame_index, ".");
+	}
+}
+
+} // namespace
 
 // =========================== AudioStreamMIDISequencer ===========================
 
@@ -82,7 +95,7 @@ int32_t AudioStreamPlaybackMIDISequencer::_mix_resampled(AudioFrame *p_dst_buffe
 		return p_frame_count;
 	}
 
-	scheduler.mix(reinterpret_cast<MidiScheduler::AudioFrame *>(p_dst_buffer), p_frame_count);
+	scheduler.try_mix(reinterpret_cast<MidiScheduler::AudioFrame *>(p_dst_buffer), p_frame_count);
 
 	return p_frame_count;
 }
@@ -92,57 +105,49 @@ float AudioStreamPlaybackMIDISequencer::_get_stream_sampling_rate() const {
 }
 
 void AudioStreamPlaybackMIDISequencer::_set_parameter(const StringName &p_name, const Variant &p_value) {
-	synth_config.set_parameter(p_name, p_value);
+	synth_config.try_set_parameter(p_name, p_value);
 }
 
 Variant AudioStreamPlaybackMIDISequencer::_get_parameter(const StringName &p_name) const {
 	Variant value;
-	synth_config.find_parameter(p_name, value);
+	synth_config.try_get_parameter(p_name, value);
 	return value;
 }
 
-void AudioStreamPlaybackMIDISequencer::_report_if_discarded(bool p_queued, int p_time) const {
-	if (!p_queued) {
-		UtilityFunctions::push_error(
-				"AudioStreamPlaybackMIDISequencer: discarding message scheduled at frame ", p_time,
-				", which is before the current frame ", scheduler.get_current_frame(), ".");
-	}
+void AudioStreamPlaybackMIDISequencer::note_on(int p_frame_index, int p_channel_index, int p_note_index, int p_velocity) {
+	report_if_discarded(scheduler.try_note_on(p_frame_index, p_channel_index, p_note_index, p_velocity), p_frame_index, scheduler.get_current_frame());
 }
 
-void AudioStreamPlaybackMIDISequencer::note_on(int p_time, int p_channel, int p_note, int p_velocity) {
-	_report_if_discarded(scheduler.note_on(p_time, p_channel, p_note, p_velocity), p_time);
+void AudioStreamPlaybackMIDISequencer::note_off(int p_frame_index, int p_channel_index, int p_note_index) {
+	report_if_discarded(scheduler.try_note_off(p_frame_index, p_channel_index, p_note_index), p_frame_index, scheduler.get_current_frame());
 }
 
-void AudioStreamPlaybackMIDISequencer::note_off(int p_time, int p_channel, int p_note) {
-	_report_if_discarded(scheduler.note_off(p_time, p_channel, p_note), p_time);
+void AudioStreamPlaybackMIDISequencer::note_after_touch(int p_frame_index, int p_channel_index, int p_note_index, int p_value) {
+	report_if_discarded(scheduler.try_note_after_touch(p_frame_index, p_channel_index, p_note_index, p_value), p_frame_index, scheduler.get_current_frame());
 }
 
-void AudioStreamPlaybackMIDISequencer::note_after_touch(int p_time, int p_channel, int p_note, int p_value) {
-	_report_if_discarded(scheduler.note_after_touch(p_time, p_channel, p_note, p_value), p_time);
+void AudioStreamPlaybackMIDISequencer::channel_after_touch(int p_frame_index, int p_channel_index, int p_value) {
+	report_if_discarded(scheduler.try_channel_after_touch(p_frame_index, p_channel_index, p_value), p_frame_index, scheduler.get_current_frame());
 }
 
-void AudioStreamPlaybackMIDISequencer::channel_after_touch(int p_time, int p_channel, int p_value) {
-	_report_if_discarded(scheduler.channel_after_touch(p_time, p_channel, p_value), p_time);
+void AudioStreamPlaybackMIDISequencer::controller_change(int p_frame_index, int p_channel_index, int p_controller_id, int p_value) {
+	report_if_discarded(scheduler.try_controller_change(p_frame_index, p_channel_index, p_controller_id, p_value), p_frame_index, scheduler.get_current_frame());
 }
 
-void AudioStreamPlaybackMIDISequencer::controller_change(int p_time, int p_channel, int p_controller, int p_value) {
-	_report_if_discarded(scheduler.controller_change(p_time, p_channel, p_controller, p_value), p_time);
+void AudioStreamPlaybackMIDISequencer::patch_change(int p_frame_index, int p_channel_index, int p_patch_index) {
+	report_if_discarded(scheduler.try_patch_change(p_frame_index, p_channel_index, p_patch_index), p_frame_index, scheduler.get_current_frame());
 }
 
-void AudioStreamPlaybackMIDISequencer::patch_change(int p_time, int p_channel, int p_patch) {
-	_report_if_discarded(scheduler.patch_change(p_time, p_channel, p_patch), p_time);
+void AudioStreamPlaybackMIDISequencer::pitch_bend(int p_frame_index, int p_channel_index, int p_value) {
+	report_if_discarded(scheduler.try_pitch_bend(p_frame_index, p_channel_index, p_value), p_frame_index, scheduler.get_current_frame());
 }
 
-void AudioStreamPlaybackMIDISequencer::pitch_bend(int p_time, int p_channel, int p_value) {
-	_report_if_discarded(scheduler.pitch_bend(p_time, p_channel, p_value), p_time);
+void AudioStreamPlaybackMIDISequencer::panic(int p_frame_index) {
+	report_if_discarded(scheduler.try_panic(p_frame_index), p_frame_index, scheduler.get_current_frame());
 }
 
-void AudioStreamPlaybackMIDISequencer::panic(int p_time) {
-	_report_if_discarded(scheduler.panic(p_time), p_time);
-}
-
-void AudioStreamPlaybackMIDISequencer::reset_state(int p_time) {
-	_report_if_discarded(scheduler.reset_state(p_time), p_time);
+void AudioStreamPlaybackMIDISequencer::reset_state(int p_frame_index) {
+	report_if_discarded(scheduler.try_reset_state(p_frame_index), p_frame_index, scheduler.get_current_frame());
 }
 
 int AudioStreamPlaybackMIDISequencer::get_current_time() const {
