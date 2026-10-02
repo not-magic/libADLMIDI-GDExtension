@@ -38,7 +38,9 @@ adlmidi_env.Append(CPPDEFINES=["ENABLE_END_SILENCE_SKIPPING"])
 # internal containers use them (e.g. pl_list's std::bad_alloc on OOM).
 if "-fno-exceptions" in adlmidi_env["CXXFLAGS"]:
     adlmidi_env["CXXFLAGS"].remove("-fno-exceptions")
-    adlmidi_env.Append(CXXFLAGS=["-fexceptions"])
+    # Emscripten's default -fexceptions (JS-based) conflicts with the
+    # -sSUPPORT_LONGJMP=wasm godot-cpp forces, so use native wasm exceptions.
+    adlmidi_env.Append(CXXFLAGS=["-fwasm-exceptions"] if env["platform"] == "web" else ["-fexceptions"])
 
 # libADLMIDI is a git submodule (a separate upstream repo); build its object
 # files into build/libADLMIDI/ instead of alongside its sources so `scons`
